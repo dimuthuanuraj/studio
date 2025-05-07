@@ -1,39 +1,37 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { RefObject } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Play, Download, Eye, Users, FileAudio, CheckCircle2, XCircle, Hourglass, RefreshCw, Loader2, Languages, User } from 'lucide-react';
+import { Play, Download, Eye, Users, FileAudio, CheckCircle2, XCircle, Hourglass, RefreshCw, Loader2, Languages } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, 
+  AlertDialogTrigger, // No longer needed here if we manually control
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface AudioSample {
   id: string;
   speakerId: string;
-  speakerName?: string; // Added
-  speakerLanguage?: 'Sinhala' | 'Tamil' | string; // Added
+  speakerName?: string;
+  speakerLanguage?: 'Sinhala' | 'Tamil' | string;
   timestamp: string;
-  duration: string; // e.g., "0:15"
+  duration: string; 
   status: 'pending' | 'verified' | 'rejected';
-  audioUrl?: string; // Direct URL for playback/download
-  fileName?: string; // e.g., "speaker123_phrase1.wav"
-  phraseIndex?: number; // Added
+  audioUrl?: string; 
+  fileName?: string; 
+  phraseIndex?: number;
 }
 
-// Mock data to include new fields, simulating what might come from Firestore
 const initialMockAudioSamples: AudioSample[] = [
   { id: 'sample001', speakerId: 'sid-user-001', speakerName: 'Kamal Perera', speakerLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'sid-user-001_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 },
   { id: 'sample002', speakerId: 'sid-user-002', speakerName: 'Nimali Silva', speakerLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'sid-user-002_phrase2.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2 },
@@ -47,13 +45,12 @@ export function AdminDashboard() {
   const [audioSamples, setAudioSamples] = useState<AudioSample[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSample, setSelectedSample] = useState<AudioSample | null>(null);
+  // isAlertDialogOpen is now implicitly handled by !!selectedSample
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
   const fetchData = () => {
     setIsLoading(true);
-    // Simulate fetching data
-    // In a real app, fetch from Firestore/Firebase Storage
     setTimeout(() => {
       setAudioSamples(initialMockAudioSamples);
       setIsLoading(false);
@@ -68,7 +65,7 @@ export function AdminDashboard() {
         setCurrentAudio(null);
       }
     };
-  }, []);
+  }, []); // currentAudio dependency removed to avoid re-running on audio change.
 
   const handlePlayAudio = (sample: AudioSample) => {
     if (currentAudio) {
@@ -106,11 +103,16 @@ export function AdminDashboard() {
           s.id === sampleId ? { ...s, status: newStatus } : s
         )
       );
-      setSelectedSample(null); 
+      setSelectedSample(null); // Close dialog after update by clearing selectedSample
       setIsLoading(false);
       toast({ title: "Status Updated", description: `Sample ${sampleId} marked as ${newStatus}.` });
     }, 500);
   };
+
+  // handleViewDetails now only sets the sample. The dialog opening is controlled by `!!selectedSample`.
+  // const handleViewDetails = (sample: AudioSample) => {
+  //   setSelectedSample(sample);
+  // };
 
   const getStatusBadgeVariant = (status: AudioSample['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
@@ -146,14 +148,14 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"> {/* Adjusted to 4 columns for Languages */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-md hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Submissions</CardTitle>
             <FileAudio className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{isLoading ? "..." : totalSubmissions}</div>
+            <div className="text-3xl font-bold text-foreground">{isLoading ? <Loader2 className="h-6 w-6 animate-spin inline-block" /> : totalSubmissions}</div>
             <p className="text-xs text-muted-foreground">
               Audio samples received
             </p>
@@ -165,7 +167,7 @@ export function AdminDashboard() {
             <Users className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{isLoading ? "..." : uniqueSpeakers}</div>
+            <div className="text-3xl font-bold text-foreground">{isLoading ? <Loader2 className="h-6 w-6 animate-spin inline-block" /> : uniqueSpeakers}</div>
             <p className="text-xs text-muted-foreground">
               Distinct registered users
             </p>
@@ -177,7 +179,7 @@ export function AdminDashboard() {
             <Hourglass className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{isLoading ? "..." : pendingReview}</div>
+            <div className="text-3xl font-bold text-foreground">{isLoading ? <Loader2 className="h-6 w-6 animate-spin inline-block" /> : pendingReview}</div>
             <p className="text-xs text-muted-foreground">
               Samples awaiting verification
             </p>
@@ -189,7 +191,7 @@ export function AdminDashboard() {
             <Languages className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{isLoading ? "..." : totalLanguages}</div>
+            <div className="text-3xl font-bold text-foreground">{isLoading ? <Loader2 className="h-6 w-6 animate-spin inline-block" /> : totalLanguages}</div>
             <p className="text-xs text-muted-foreground">
               Unique languages submitted
             </p>
@@ -251,10 +253,9 @@ export function AdminDashboard() {
                         <Button variant="ghost" size="icon" onClick={() => handleDownloadAudio(sample)} title="Download Audio" className="hover:text-primary">
                           <Download className="h-4 w-4" />
                         </Button>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => setSelectedSample(sample)} title="View & Update Status" className="hover:text-accent">
+                        {/* Removed AlertDialogTrigger, Button directly opens by setting selectedSample */}
+                        <AlertDialogTrigger onClick={() => setSelectedSample(sample)} title="View & Update Status" className="hover:text-accent">
                             <Eye className="h-4 w-4" />
-                          </Button>
                         </AlertDialogTrigger>
                       </TableCell>
                     </TableRow>
@@ -269,58 +270,63 @@ export function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {selectedSample && (
-        <AlertDialog open={!!selectedSample} onOpenChange={(open) => !open && setSelectedSample(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-primary">Review Sample: {selectedSample.fileName}</AlertDialogTitle>
-              <AlertDialogDescription>
-                <div className="space-y-1 text-sm">
-                    <p><strong>Speaker ID:</strong> {selectedSample.speakerId}</p>
-                    {selectedSample.speakerName && <p><strong>Speaker Name:</strong> {selectedSample.speakerName}</p>}
-                    {selectedSample.speakerLanguage && <p><strong>Language:</strong> {selectedSample.speakerLanguage}</p>}
-                    {selectedSample.phraseIndex && <p><strong>Phrase No:</strong> {selectedSample.phraseIndex}</p>}
-                    <p><strong>Submitted:</strong> {new Date(selectedSample.timestamp).toLocaleString()}</p>
-                    <p><strong>Duration:</strong> {selectedSample.duration}</p>
-                    <p><strong>Current Status:</strong> <Badge variant={getStatusBadgeVariant(selectedSample.status)} className="capitalize">{selectedSample.status}</Badge></p>
+      {/* AlertDialog is now controlled by selectedSample state */}
+      <AlertDialog open={!!selectedSample} onOpenChange={(open) => {
+        if (!open) setSelectedSample(null); // Clear selectedSample when dialog closes
+      }}>
+        <AlertDialogContent>
+          {selectedSample && ( // Ensure selectedSample is not null before accessing its properties
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-primary">Review Sample: {selectedSample.fileName}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  <div className="space-y-1 text-sm">
+                      <p><strong>Speaker ID:</strong> {selectedSample.speakerId}</p>
+                      {selectedSample.speakerName && <p><strong>Speaker Name:</strong> {selectedSample.speakerName}</p>}
+                      {selectedSample.speakerLanguage && <p><strong>Language:</strong> {selectedSample.speakerLanguage}</p>}
+                      {selectedSample.phraseIndex && <p><strong>Phrase No:</strong> {selectedSample.phraseIndex}</p>}
+                      <p><strong>Submitted:</strong> {new Date(selectedSample.timestamp).toLocaleString()}</p>
+                      <p><strong>Duration:</strong> {selectedSample.duration}</p>
+                      <p><strong>Current Status:</strong> <Badge variant={getStatusBadgeVariant(selectedSample.status)} className="capitalize">{selectedSample.status}</Badge></p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="my-4">
+                <h4 className="font-semibold mb-2 text-foreground">Update Status:</h4>
+                <div className="flex space-x-2">
+                  <Button 
+                    onClick={() => updateSampleStatus(selectedSample.id, 'verified')} 
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground flex-1"
+                    disabled={selectedSample.status === 'verified' || isLoading}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4"/> Verify
+                  </Button>
+                  <Button 
+                    onClick={() => updateSampleStatus(selectedSample.id, 'rejected')} 
+                    variant="destructive" 
+                    className="flex-1"
+                    disabled={selectedSample.status === 'rejected' || isLoading}
+                  >
+                     <XCircle className="mr-2 h-4 w-4"/> Reject
+                  </Button>
+                   <Button 
+                    onClick={() => updateSampleStatus(selectedSample.id, 'pending')} 
+                    variant="secondary" 
+                    className="flex-1"
+                    disabled={selectedSample.status === 'pending' || isLoading}
+                  >
+                    <Hourglass className="mr-2 h-4 w-4"/> Set to Pending
+                  </Button>
                 </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="my-4">
-              <h4 className="font-semibold mb-2 text-foreground">Update Status:</h4>
-              <div className="flex space-x-2">
-                <Button 
-                  onClick={() => updateSampleStatus(selectedSample.id, 'verified')} 
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex-1"
-                  disabled={selectedSample.status === 'verified' || isLoading}
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4"/> Verify
-                </Button>
-                <Button 
-                  onClick={() => updateSampleStatus(selectedSample.id, 'rejected')} 
-                  variant="destructive" 
-                  className="flex-1"
-                  disabled={selectedSample.status === 'rejected' || isLoading}
-                >
-                   <XCircle className="mr-2 h-4 w-4"/> Reject
-                </Button>
-                 <Button 
-                  onClick={() => updateSampleStatus(selectedSample.id, 'pending')} 
-                  variant="secondary" 
-                  className="flex-1"
-                  disabled={selectedSample.status === 'pending' || isLoading}
-                >
-                  <Hourglass className="mr-2 h-4 w-4"/> Set to Pending
-                </Button>
+                 {isLoading && <p className="text-xs text-center mt-2 text-muted-foreground animate-pulse">Updating status...</p>}
               </div>
-               {isLoading && <p className="text-xs text-center mt-2 text-muted-foreground animate-pulse">Updating status...</p>}
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setSelectedSample(null)}>Close</AlertDialogCancel>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setSelectedSample(null)}>Close</AlertDialogCancel>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
