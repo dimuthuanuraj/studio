@@ -1,6 +1,7 @@
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { UserCog, LogIn } from 'lucide-react'; // Using UserCog for admin, consider LogIn for general auth
+import { UserCog, UserPlus, LogIn } from 'lucide-react'; // Added UserPlus for Register
 
 export function Header() {
   return (
@@ -14,6 +15,12 @@ export function Header() {
           {/* <Button variant="ghost" asChild>
             <Link href="/features">Features</Link>
           </Button> */}
+          <Button variant="outline" asChild>
+            <Link href="/register">
+              <UserPlus className="mr-2 h-5 w-5" />
+              Register
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/admin">
               <UserCog className="mr-2 h-5 w-5" />

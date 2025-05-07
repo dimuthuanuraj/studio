@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Play, Download, Eye, Users, FileAudio, CheckCircle2, XCircle, Hourglass, RefreshCw, Loader2 } from 'lucide-react';
+import { Play, Download, Eye, Users, FileAudio, CheckCircle2, XCircle, Hourglass, RefreshCw, Loader2, Languages, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -16,26 +16,30 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // No longer needed here as trigger is manual
+  AlertDialogTrigger, 
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface AudioSample {
   id: string;
   speakerId: string;
+  speakerName?: string; // Added
+  speakerLanguage?: 'Sinhala' | 'Tamil' | string; // Added
   timestamp: string;
   duration: string; // e.g., "0:15"
   status: 'pending' | 'verified' | 'rejected';
   audioUrl?: string; // Direct URL for playback/download
-  fileName?: string; // e.g., "sample_speaker123.wav"
+  fileName?: string; // e.g., "speaker123_phrase1.wav"
+  phraseIndex?: number; // Added
 }
 
+// Mock data to include new fields, simulating what might come from Firestore
 const initialMockAudioSamples: AudioSample[] = [
-  { id: 'sample001', speakerId: 'sid-user-001', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'voice_sample_001.wav', audioUrl: 'https://picsum.photos/10/10' }, // Placeholder URL
-  { id: 'sample002', speakerId: 'sid-user-002', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'voice_sample_002.wav', audioUrl: 'https://picsum.photos/10/10' },
-  { id: 'sample003', speakerId: 'sid-user-001', timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), duration: '0:10', status: 'rejected', fileName: 'voice_sample_003.wav', audioUrl: 'https://picsum.photos/10/10' },
-  { id: 'sample004', speakerId: 'sid-user-003', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), duration: '0:28', status: 'pending', fileName: 'voice_sample_004.wav', audioUrl: 'https://picsum.photos/10/10' },
-  { id: 'sample005', speakerId: 'sid-user-002', timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), duration: '0:19', status: 'verified', fileName: 'voice_sample_005.wav', audioUrl: 'https://picsum.photos/10/10' },
+  { id: 'sample001', speakerId: 'sid-user-001', speakerName: 'Kamal Perera', speakerLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'sid-user-001_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 },
+  { id: 'sample002', speakerId: 'sid-user-002', speakerName: 'Nimali Silva', speakerLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'sid-user-002_phrase2.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2 },
+  { id: 'sample003', speakerId: 'sid-user-001', speakerName: 'Kamal Perera', speakerLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), duration: '0:10', status: 'rejected', fileName: 'sid-user-001_phrase3.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 3 },
+  { id: 'sample004', speakerId: 'sid-user-003', speakerName: 'Saman Kumara', speakerLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), duration: '0:28', status: 'pending', fileName: 'sid-user-003_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 },
+  { id: 'sample005', speakerId: 'sid-user-002', speakerName: 'Nimali Silva', speakerLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), duration: '0:19', status: 'verified', fileName: 'sid-user-002_phrase4.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 4 },
 ];
 
 
@@ -49,6 +53,7 @@ export function AdminDashboard() {
   const fetchData = () => {
     setIsLoading(true);
     // Simulate fetching data
+    // In a real app, fetch from Firestore/Firebase Storage
     setTimeout(() => {
       setAudioSamples(initialMockAudioSamples);
       setIsLoading(false);
@@ -57,7 +62,6 @@ export function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
-    // Cleanup audio on component unmount
     return () => {
       if (currentAudio) {
         currentAudio.pause();
@@ -68,7 +72,7 @@ export function AdminDashboard() {
 
   const handlePlayAudio = (sample: AudioSample) => {
     if (currentAudio) {
-      currentAudio.pause(); // Stop any currently playing audio
+      currentAudio.pause(); 
     }
     if (sample.audioUrl) {
       const audio = new Audio(sample.audioUrl);
@@ -84,7 +88,7 @@ export function AdminDashboard() {
     if (sample.audioUrl) {
       const link = document.createElement('a');
       link.href = sample.audioUrl;
-      link.download = sample.fileName || `audio_sample_${sample.id}.wav`; // Fallback filename
+      link.download = sample.fileName || `audio_sample_${sample.id}.webm`; 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -94,13 +98,7 @@ export function AdminDashboard() {
     }
   };
 
-  const handleViewDetails = (sample: AudioSample) => {
-    setSelectedSample(sample);
-    // Modal or side panel for details would be opened here.
-  };
-
   const updateSampleStatus = (sampleId: string, newStatus: AudioSample['status']) => {
-    // Simulate API call
     setIsLoading(true);
     setTimeout(() => {
       setAudioSamples(prevSamples =>
@@ -108,7 +106,7 @@ export function AdminDashboard() {
           s.id === sampleId ? { ...s, status: newStatus } : s
         )
       );
-      setSelectedSample(null); // Close dialog
+      setSelectedSample(null); 
       setIsLoading(false);
       toast({ title: "Status Updated", description: `Sample ${sampleId} marked as ${newStatus}.` });
     }, 500);
@@ -117,9 +115,9 @@ export function AdminDashboard() {
   const getStatusBadgeVariant = (status: AudioSample['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'pending':
-        return 'secondary'; // Using secondary for pending, as per ShadCN convention
+        return 'secondary'; 
       case 'verified':
-        return 'default'; // 'default' uses primary color which is Green
+        return 'default'; 
       case 'rejected':
         return 'destructive';
       default:
@@ -140,14 +138,15 @@ export function AdminDashboard() {
     }
   };
 
-
   const totalSubmissions = audioSamples.length;
   const uniqueSpeakers = new Set(audioSamples.map(s => s.speakerId)).size;
   const pendingReview = audioSamples.filter(s => s.status === 'pending').length;
+  const totalLanguages = new Set(audioSamples.map(s => s.speakerLanguage).filter(Boolean)).size;
+
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"> {/* Adjusted to 4 columns for Languages */}
         <Card className="shadow-md hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Submissions</CardTitle>
@@ -156,7 +155,7 @@ export function AdminDashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-foreground">{isLoading ? "..." : totalSubmissions}</div>
             <p className="text-xs text-muted-foreground">
-              Audio samples received globally
+              Audio samples received
             </p>
           </CardContent>
         </Card>
@@ -168,7 +167,7 @@ export function AdminDashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-foreground">{isLoading ? "..." : uniqueSpeakers}</div>
             <p className="text-xs text-muted-foreground">
-              Distinct users who submitted audio
+              Distinct registered users
             </p>
           </CardContent>
         </Card>
@@ -181,6 +180,18 @@ export function AdminDashboard() {
             <div className="text-3xl font-bold text-foreground">{isLoading ? "..." : pendingReview}</div>
             <p className="text-xs text-muted-foreground">
               Samples awaiting verification
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-md hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Languages</CardTitle>
+            <Languages className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-foreground">{isLoading ? "..." : totalLanguages}</div>
+            <p className="text-xs text-muted-foreground">
+              Unique languages submitted
             </p>
           </CardContent>
         </Card>
@@ -208,19 +219,23 @@ export function AdminDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Sample ID</TableHead>
-                    <TableHead className="w-[150px]">Speaker ID</TableHead>
+                    <TableHead className="w-[120px]">Speaker ID</TableHead>
+                    <TableHead>Speaker Name</TableHead>
+                    <TableHead>Language</TableHead>
+                    <TableHead>Filename</TableHead>
                     <TableHead>Timestamp</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right w-[200px]">Actions</TableHead>
+                    <TableHead className="text-right w-[160px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {audioSamples.map((sample) => (
                     <TableRow key={sample.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium truncate max-w-[100px]">{sample.id}</TableCell>
-                      <TableCell className="truncate max-w-[150px]">{sample.speakerId}</TableCell>
+                      <TableCell className="font-medium truncate max-w-[120px]">{sample.speakerId}</TableCell>
+                      <TableCell>{sample.speakerName || 'N/A'}</TableCell>
+                      <TableCell>{sample.speakerLanguage || 'N/A'}</TableCell>
+                      <TableCell className="truncate max-w-[200px]">{sample.fileName}</TableCell>
                       <TableCell>{new Date(sample.timestamp).toLocaleString()}</TableCell>
                       <TableCell>{sample.duration}</TableCell>
                       <TableCell>
@@ -236,9 +251,11 @@ export function AdminDashboard() {
                         <Button variant="ghost" size="icon" onClick={() => handleDownloadAudio(sample)} title="Download Audio" className="hover:text-primary">
                           <Download className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleViewDetails(sample)} title="View & Update Status" className="hover:text-accent">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => setSelectedSample(sample)} title="View & Update Status" className="hover:text-accent">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -256,12 +273,17 @@ export function AdminDashboard() {
         <AlertDialog open={!!selectedSample} onOpenChange={(open) => !open && setSelectedSample(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-primary">Review Sample: {selectedSample.id}</AlertDialogTitle>
+              <AlertDialogTitle className="text-primary">Review Sample: {selectedSample.fileName}</AlertDialogTitle>
               <AlertDialogDescription>
-                Details for audio sample from Speaker ID: <strong>{selectedSample.speakerId}</strong>.<br/>
-                Submitted: {new Date(selectedSample.timestamp).toLocaleString()}<br/>
-                Duration: {selectedSample.duration}<br/>
-                Current Status: <Badge variant={getStatusBadgeVariant(selectedSample.status)} className="capitalize">{selectedSample.status}</Badge>
+                <div className="space-y-1 text-sm">
+                    <p><strong>Speaker ID:</strong> {selectedSample.speakerId}</p>
+                    {selectedSample.speakerName && <p><strong>Speaker Name:</strong> {selectedSample.speakerName}</p>}
+                    {selectedSample.speakerLanguage && <p><strong>Language:</strong> {selectedSample.speakerLanguage}</p>}
+                    {selectedSample.phraseIndex && <p><strong>Phrase No:</strong> {selectedSample.phraseIndex}</p>}
+                    <p><strong>Submitted:</strong> {new Date(selectedSample.timestamp).toLocaleString()}</p>
+                    <p><strong>Duration:</strong> {selectedSample.duration}</p>
+                    <p><strong>Current Status:</strong> <Badge variant={getStatusBadgeVariant(selectedSample.status)} className="capitalize">{selectedSample.status}</Badge></p>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="my-4">
@@ -302,20 +324,3 @@ export function AdminDashboard() {
     </div>
   );
 }
-
-// Helper component to display loading skeletons for cards
-function LoadingCardSkeleton() {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <div className="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
-        <div className="h-5 w-5 bg-muted rounded animate-pulse"></div>
-      </CardHeader>
-      <CardContent>
-        <div className="h-8 bg-muted rounded w-1/2 mb-1 animate-pulse"></div>
-        <div className="h-3 bg-muted rounded w-3/4 animate-pulse"></div>
-      </CardContent>
-    </Card>
-  );
-}
-
