@@ -16,7 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  // AlertDialogTrigger, // No longer needed here as trigger is manual
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -96,8 +96,7 @@ export function AdminDashboard() {
 
   const handleViewDetails = (sample: AudioSample) => {
     setSelectedSample(sample);
-    // Modal or side panel for details would be opened here. For now, alert.
-    // alert(`Viewing details for sample ID: ${sample.id}`);
+    // Modal or side panel for details would be opened here.
   };
 
   const updateSampleStatus = (sampleId: string, newStatus: AudioSample['status']) => {
@@ -237,11 +236,9 @@ export function AdminDashboard() {
                         <Button variant="ghost" size="icon" onClick={() => handleDownloadAudio(sample)} title="Download Audio" className="hover:text-primary">
                           <Download className="h-4 w-4" />
                         </Button>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => handleViewDetails(sample)} title="View & Update Status" className="hover:text-accent">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
+                        <Button variant="ghost" size="icon" onClick={() => handleViewDetails(sample)} title="View & Update Status" className="hover:text-accent">
+                          <Eye className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -321,3 +318,4 @@ function LoadingCardSkeleton() {
     </Card>
   );
 }
+
