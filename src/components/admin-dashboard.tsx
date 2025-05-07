@@ -6,7 +6,7 @@ import type { RefObject } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Play, Download, Eye, Users, FileAudio, CheckCircle2, XCircle, Hourglass, RefreshCw, Loader2, Languages, Mic2 } from 'lucide-react';
+import { Play, Download, Eye, Users, FileAudio, CheckCircle2, XCircle, Hourglass, RefreshCw, Loader2, Languages, Mic2, PackageSearch, FileArchive } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -16,9 +16,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // No longer needed here for direct use in table
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+
 
 type RecordingLanguage = 'Sinhala' | 'Tamil' | 'English';
 
@@ -34,14 +36,16 @@ interface AudioSample {
   audioUrl?: string; 
   fileName?: string; 
   phraseIndex?: number;
+  phraseText?: string; // Added for completeness, though not directly used in zipping filename here
 }
 
 const initialMockAudioSamples: AudioSample[] = [
-  { id: 'sample001', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'id90000_sinhala_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 },
-  { id: 'sample002', speakerId: 'id90001', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'id90001_tamil_phrase2.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2 },
-  { id: 'sample003', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), duration: '0:10', status: 'rejected', fileName: 'id90000_english_phrase3.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 3 },
-  { id: 'sample004', speakerId: 'id90002', speakerName: 'Saman Kumara', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), duration: '0:28', status: 'pending', fileName: 'id90002_sinhala_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 }, // Assuming id90002 is a new speaker
-  { id: 'sample005', speakerId: 'id90001', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), duration: '0:19', status: 'verified', fileName: 'id90001_english_phrase4.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 4 },
+  { id: 'sample001', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'id90000_sinhala_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1, phraseText: "Mock phrase 1" },
+  { id: 'sample002', speakerId: 'id90001', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'id90001_tamil_phrase2.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2, phraseText: "Mock phrase 2" },
+  { id: 'sample003', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), duration: '0:10', status: 'rejected', fileName: 'id90000_english_phrase3.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 3, phraseText: "Mock phrase 3" },
+  { id: 'sample004', speakerId: 'id90002', speakerName: 'Saman Kumara', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), duration: '0:28', status: 'pending', fileName: 'id90002_sinhala_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1, phraseText: "Mock phrase 4" },
+  { id: 'sample005', speakerId: 'id90001', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), duration: '0:19', status: 'verified', fileName: 'id90001_english_phrase4.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 4, phraseText: "Mock phrase 5" },
+  { id: 'sample006', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 6).toISOString(), duration: '0:12', status: 'pending', fileName: 'id90000_sinhala_phrase2.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2, phraseText: "Mock phrase 6" },
 ];
 
 
@@ -51,13 +55,12 @@ export function AdminDashboard() {
   const [selectedSample, setSelectedSample] = useState<AudioSample | null>(null);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [isZipping, setIsZipping] = useState(false);
   const { toast } = useToast();
 
   const fetchData = () => {
     setIsLoading(true);
-    // Simulate fetching data
     setTimeout(() => {
-      // In a real app, sort by timestamp descending by default
       const sortedSamples = [...initialMockAudioSamples].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setAudioSamples(sortedSamples);
       setIsLoading(false);
@@ -69,7 +72,7 @@ export function AdminDashboard() {
     return () => {
       if (currentAudio) {
         currentAudio.pause();
-        currentAudio.src = ''; // Release the audio source
+        currentAudio.src = ''; 
         setCurrentAudio(null);
       }
     };
@@ -77,7 +80,7 @@ export function AdminDashboard() {
   }, []); 
 
   const handlePlayAudio = (sample: AudioSample) => {
-    if (currentAudio && currentAudio.src === sample.audioUrl) {
+    if (currentAudio && currentAudio.src === sample.audioUrl && !currentAudio.ended) {
         if(currentAudio.paused) {
             currentAudio.play().catch(e => console.error("Error playing audio:", e));
             toast({ title: "Resuming Audio", description: `Playing ${sample.fileName}`});
@@ -107,28 +110,84 @@ export function AdminDashboard() {
   };
   
   const handleDownloadAudio = (sample: AudioSample) => {
-    if (sample.audioUrl) {
-      const link = document.createElement('a');
-      link.href = sample.audioUrl;
-      link.download = sample.fileName || `audio_sample_${sample.id}.webm`; 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast({ title: "Downloading Audio", description: `Downloading ${sample.fileName || 'sample'}...` });
+    if (sample.audioUrl && sample.fileName) {
+        // For mock data, create a dummy blob as picsum.photos is an image
+        const isMockUrl = sample.audioUrl.includes('picsum.photos');
+        if (isMockUrl) {
+            const dummyContent = `This is a mock audio file for ${sample.fileName}. URL: ${sample.audioUrl}`;
+            const blob = new Blob([dummyContent], { type: 'text/plain' });
+            saveAs(blob, sample.fileName.replace('.webm', '.txt')); // Save as .txt for mock
+            toast({ title: "Downloading Mock Audio", description: `Downloading ${sample.fileName} (as .txt)...` });
+        } else {
+            // Real download logic (if URLs were actual audio files)
+            const link = document.createElement('a');
+            link.href = sample.audioUrl;
+            link.download = sample.fileName; 
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast({ title: "Downloading Audio", description: `Downloading ${sample.fileName}...` });
+        }
     } else {
-      toast({ title: "Download Error", description: "No audio URL available for this sample.", variant: "destructive" });
+        toast({ title: "Download Error", description: "No audio URL or filename available.", variant: "destructive" });
     }
   };
 
+  const handleDownloadAllBySpeaker = async (speakerId: string) => {
+    setIsZipping(true);
+    toast({ title: "Preparing Download", description: `Zipping all samples for speaker ${speakerId}...` });
+
+    const samplesToZip = audioSamples.filter(s => s.speakerId === speakerId);
+    if (samplesToZip.length === 0) {
+      toast({ title: "No Samples", description: `No samples found for speaker ${speakerId}.`, variant: "destructive" });
+      setIsZipping(false);
+      return;
+    }
+
+    const zip = new JSZip();
+    const speakerFolder = zip.folder(speakerId); // Create a folder for the speaker
+
+    if (!speakerFolder) {
+        toast({ title: "Zip Error", description: "Could not create speaker folder in zip.", variant: "destructive" });
+        setIsZipping(false);
+        return;
+    }
+
+    try {
+      for (const sample of samplesToZip) {
+        if (sample.fileName) {
+          // For mock data, add a dummy text file
+          const dummyContent = `Mock audio content for ${sample.fileName}. Recorded Language: ${sample.recordedLanguage}, Phrase Index: ${sample.phraseIndex}, Timestamp: ${sample.timestamp}. Actual URL: ${sample.audioUrl}`;
+          speakerFolder.file(sample.fileName.replace('.webm', '.txt'), dummyContent);
+          
+          // In a real app with actual audio URLs:
+          // const response = await fetch(sample.audioUrl);
+          // if (!response.ok) throw new Error(`Failed to fetch ${sample.fileName}`);
+          // const blob = await response.blob();
+          // speakerFolder.file(sample.fileName, blob);
+        }
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      saveAs(zipBlob, `${speakerId}_all_samples.zip`);
+      toast({ title: "Download Ready", description: `All samples for ${speakerId} downloaded.`, variant: "default" });
+    } catch (error) {
+      console.error("Error zipping files:", error);
+      toast({ title: "Zip Error", description: "Failed to create zip file.", variant: "destructive" });
+    } finally {
+      setIsZipping(false);
+    }
+  };
+
+
   const updateSampleStatus = (sampleId: string, newStatus: AudioSample['status']) => {
-    setIsActionLoading(true); // Indicate loading for this specific action
+    setIsActionLoading(true); 
     setTimeout(() => {
       setAudioSamples(prevSamples =>
         prevSamples.map(s =>
           s.id === sampleId ? { ...s, status: newStatus } : s
         )
       );
-      // Update the selectedSample's status if it's the one being changed
       if (selectedSample && selectedSample.id === sampleId) {
         setSelectedSample(prev => prev ? { ...prev, status: newStatus } : null);
       }
@@ -143,7 +202,7 @@ export function AdminDashboard() {
       case 'pending':
         return 'secondary'; 
       case 'verified':
-        return 'default'; // Primary-like color
+        return 'default'; 
       case 'rejected':
         return 'destructive';
       default:
@@ -203,7 +262,7 @@ export function AdminDashboard() {
             <Hourglass className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{isLoading ? <Loader2 className="h-6 w-6 animate-spin inline-block text-accent" /> : pendingReview}</div>
+            <div className="text-3xl font-bold text-foreground">{isLoading ? <Loader2 className="h-6 w-6 animate-spin inline-block text-primary" /> : pendingReview}</div>
             <p className="text-xs text-muted-foreground">
               Samples awaiting verification
             </p>
@@ -229,7 +288,7 @@ export function AdminDashboard() {
             <CardTitle className="text-2xl text-primary">Audio Sample Submissions</CardTitle>
             <CardDescription>Manage and review submitted audio samples for VoiceID Lanka.</CardDescription>
           </div>
-          <Button onClick={fetchData} variant="outline" size="sm" disabled={isLoading} className="hover:bg-primary/10">
+          <Button onClick={fetchData} variant="outline" size="sm" disabled={isLoading || isZipping} className="hover:bg-primary/10">
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh Data
           </Button>
@@ -249,11 +308,12 @@ export function AdminDashboard() {
                     <TableHead className="whitespace-nowrap">Speaker Name</TableHead>
                     <TableHead className="whitespace-nowrap">Native Lang.</TableHead>
                     <TableHead className="whitespace-nowrap">Recorded Lang.</TableHead>
+                    <TableHead className="whitespace-nowrap">Phrase No.</TableHead>
                     <TableHead>Filename</TableHead>
                     <TableHead className="whitespace-nowrap">Timestamp</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right w-[180px]">Actions</TableHead>
+                    <TableHead className="text-right w-[220px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -270,6 +330,7 @@ export function AdminDashboard() {
                           {sample.recordedLanguage || 'N/A'}
                         </Badge>
                       </TableCell>
+                      <TableCell className="whitespace-nowrap text-center">{sample.phraseIndex ?? 'N/A'}</TableCell>
                       <TableCell className="truncate max-w-[200px] text-sm text-muted-foreground">{sample.fileName}</TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{new Date(sample.timestamp).toLocaleString()}</TableCell>
                       <TableCell className="whitespace-nowrap">{sample.duration}</TableCell>
@@ -280,16 +341,18 @@ export function AdminDashboard() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(sample)} title="Play/Pause Audio" className="hover:text-primary transition-colors">
+                        <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(sample)} title="Play/Pause Audio" className="hover:text-primary transition-colors" disabled={isZipping}>
                           <Play className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDownloadAudio(sample)} title="Download Audio" className="hover:text-primary transition-colors">
+                        <Button variant="ghost" size="icon" onClick={() => handleDownloadAudio(sample)} title="Download Audio" className="hover:text-primary transition-colors" disabled={isZipping}>
                           <Download className="h-4 w-4" />
                         </Button>
-                        {/* Button now directly sets selectedSample to open the dialog */}
-                          <Button variant="ghost" size="icon" onClick={() => setSelectedSample(sample)} title="View & Update Status" className="hover:text-accent transition-colors">
-                              <Eye className="h-4 w-4" />
-                          </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedSample(sample)} title="View & Update Status" className="hover:text-accent transition-colors" disabled={isZipping}>
+                            <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDownloadAllBySpeaker(sample.speakerId)} title={`Download All by ${sample.speakerId}`} className="hover:text-green-600 transition-colors" disabled={isZipping}>
+                          {isZipping ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileArchive className="h-4 w-4" />}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -317,7 +380,7 @@ export function AdminDashboard() {
                       {selectedSample.speakerName && <p><strong>Speaker Name:</strong> <span className="text-foreground">{selectedSample.speakerName}</span></p>}
                       {selectedSample.nativeLanguage && <p><strong>Native Language:</strong> <Badge variant="outline" className="ml-1">{selectedSample.nativeLanguage}</Badge></p>}
                       <p><strong>Recorded Language:</strong> <Badge variant={selectedSample.recordedLanguage === selectedSample.nativeLanguage ? "outline" : "secondary"} className="ml-1">{selectedSample.recordedLanguage}</Badge></p>
-                      {selectedSample.phraseIndex && <p><strong>Phrase No:</strong> <span className="text-foreground">{selectedSample.phraseIndex}</span></p>}
+                      {selectedSample.phraseIndex != null && <p><strong>Phrase No:</strong> <span className="text-foreground">{selectedSample.phraseIndex}</span></p>}
                       <p><strong>Submitted:</strong> <span className="text-foreground">{new Date(selectedSample.timestamp).toLocaleString()}</span></p>
                       <p><strong>Duration:</strong> <span className="text-foreground">{selectedSample.duration}</span></p>
                       <p><strong>Current Status:</strong> <Badge variant={getStatusBadgeVariant(selectedSample.status)} className="capitalize ml-1 text-xs px-2 py-1 flex items-center w-max">{getStatusIcon(selectedSample.status)}{selectedSample.status}</Badge></p>
@@ -330,7 +393,7 @@ export function AdminDashboard() {
                   <Button 
                     onClick={() => updateSampleStatus(selectedSample.id, 'verified')} 
                     className="bg-green-600 hover:bg-green-700 text-white flex-1"
-                    disabled={selectedSample.status === 'verified' || isActionLoading}
+                    disabled={selectedSample.status === 'verified' || isActionLoading || isZipping}
                   >
                     {isActionLoading && selectedSample.status !== 'verified' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle2 className="mr-2 h-4 w-4"/>} Verify
                   </Button>
@@ -338,7 +401,7 @@ export function AdminDashboard() {
                     onClick={() => updateSampleStatus(selectedSample.id, 'rejected')} 
                     variant="destructive" 
                     className="flex-1"
-                    disabled={selectedSample.status === 'rejected' || isActionLoading}
+                    disabled={selectedSample.status === 'rejected' || isActionLoading || isZipping}
                   >
                      {isActionLoading && selectedSample.status !== 'rejected' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <XCircle className="mr-2 h-4 w-4"/>} Reject
                   </Button>
@@ -346,15 +409,15 @@ export function AdminDashboard() {
                     onClick={() => updateSampleStatus(selectedSample.id, 'pending')} 
                     variant="secondary" 
                     className="flex-1 hover:bg-yellow-500/20 text-yellow-700 border-yellow-500"
-                    disabled={selectedSample.status === 'pending' || isActionLoading}
+                    disabled={selectedSample.status === 'pending' || isActionLoading || isZipping}
                   >
                     {isActionLoading && selectedSample.status !== 'pending' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Hourglass className="mr-2 h-4 w-4"/>} To Pending
                   </Button>
                 </div>
-                 {isActionLoading && <p className="text-xs text-center mt-3 text-muted-foreground animate-pulse">Updating status, please wait...</p>}
+                 {(isActionLoading || isZipping) && <p className="text-xs text-center mt-3 text-muted-foreground animate-pulse">Processing, please wait...</p>}
               </div>
               <AlertDialogFooter className="pt-4 border-t">
-                <AlertDialogCancel onClick={() => setSelectedSample(null)} className="w-full sm:w-auto">Close</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setSelectedSample(null)} className="w-full sm:w-auto" disabled={isZipping}>Close</AlertDialogCancel>
               </AlertDialogFooter>
             </>
           )}
