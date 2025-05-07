@@ -2,25 +2,24 @@
 'use client';
 
 import { useState, useRef, useEffect, type RefObject } from 'react';
-import { useSpeakerId } from '@/hooks/useSpeakerId';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mic, StopCircle, Send, Play, Download, AlertTriangle, Trash2, Loader2, ChevronRight, ChevronLeft, RefreshCcw, BrainCircuit } from 'lucide-react';
+import { Mic, StopCircle, Send, Play, Download, AlertTriangle, Trash2, Loader2, ChevronRight, RefreshCcw, BrainCircuit } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { generateReadingPhrase } from '@/ai/flows/generate-reading-phrase-flow'; // New AI flow
+import { generateReadingPhrase } from '@/ai/flows/generate-reading-phrase-flow';
+import type { SpeakerProfile } from '@/contexts/auth-context'; // Import SpeakerProfile
 
 type RecordingStatus = 'idle' | 'recording' | 'stopped' | 'submitting' | 'error' | 'generating_phrase';
 
-const MAX_RECORDING_TIME_MS = 20000; // 20 seconds, increased to accommodate longer phrases
+const MAX_RECORDING_TIME_MS = 20000; 
 const NUMBER_OF_PHRASES_TO_RECORD = 5;
 
-// For now, default to Sinhala. This should be determined by user's profile later.
-const currentLanguage = 'Sinhala'; // or 'Tamil'
-// Phrases are now generated dynamically
+interface AudioRecorderProps {
+  userProfile: SpeakerProfile | null; // Accept user profile as prop
+}
 
-export function AudioRecorder() {
-  const { speakerId, isLoading: isLoadingSpeakerId } = useSpeakerId();
+export function AudioRecorder({ userProfile }: AudioRecorderProps) {
   const { toast } = useToast();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -31,11 +30,20 @@ export function AudioRecorder() {
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const [currentPhrase, setCurrentPhrase] = useState<string | null>(null);
-  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0); // Tracks which phrase number we are on
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
 
-  const [recordedSamples, setRecordedSamples] = useState<Array<{ phraseIndex: number; audioUrl: string; speakerId: string | undefined; fileName: string, phraseText: string }>>([]);
+  const [recordedSamples, setRecordedSamples] = useState<Array<{ phraseIndex: number; audioUrl: string; speakerId: string; fileName: string, phraseText: string, language: string }>>([]);
+
+  const speakerId = userProfile?.speakerId;
+  const currentLanguage = userProfile?.language;
+
 
   const fetchNewPhrase = async () => {
+    if (!currentLanguage) {
+      setErrorMessage("User language not set. Cannot fetch phrase.");
+      setRecordingStatus('error');
+      return;
+    }
     setRecordingStatus('generating_phrase');
     setCurrentPhrase(null);
     setErrorMessage(null);
@@ -56,11 +64,11 @@ export function AudioRecorder() {
   };
 
   useEffect(() => {
-    if (speakerId && currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD && !currentPhrase && recordingStatus !== 'generating_phrase') {
+    if (userProfile && currentLanguage && currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD && !currentPhrase && recordingStatus !== 'generating_phrase') {
       fetchNewPhrase();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speakerId, currentPhraseIndex, recordingStatus]); // currentPhrase removed to prevent re-fetch when currentPhrase is set
+  }, [userProfile, currentLanguage, currentPhraseIndex, recordingStatus]);
 
   useEffect(() => {
     return () => {
@@ -75,7 +83,9 @@ export function AudioRecorder() {
       }
       recordedSamples.forEach(sample => URL.revokeObjectURL(sample.audioUrl));
     };
-  }, [audioUrl, recordedSamples]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioUrl]); // recordedSamples removed to prevent cleanup issues on sample add
+
 
   const startRecording = async () => {
     setErrorMessage(null);
@@ -150,19 +160,19 @@ export function AudioRecorder() {
   };
 
   const saveAndNextPhrase = () => {
-    if (audioUrl && speakerId && currentPhrase) {
-      const fileName = `${speakerId.id}_phrase${currentPhraseIndex + 1}.webm`;
-      setRecordedSamples(prev => [...prev, { phraseIndex: currentPhraseIndex, audioUrl, speakerId: speakerId.id, fileName, phraseText: currentPhrase }]);
-      setAudioUrl(null); // Clear current audio for next recording
-      setCurrentPhrase(null); // Clear current phrase text
+    if (audioUrl && speakerId && currentPhrase && currentLanguage) {
+      const fileName = `${speakerId}_phrase${currentPhraseIndex + 1}.webm`;
+      const newSample = { phraseIndex: currentPhraseIndex, audioUrl, speakerId, fileName, phraseText: currentPhrase, language: currentLanguage };
+      setRecordedSamples(prev => [...prev, newSample]);
+      setAudioUrl(null); 
+      setCurrentPhrase(null); 
       
       if (currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD - 1) {
         setCurrentPhraseIndex(prev => prev + 1);
-        // fetchNewPhrase() will be called by useEffect
       } else {
         toast({ title: "All Phrases Recorded!", description: "You can now submit all samples." });
-        setRecordingStatus('idle'); // Or a new status like 'all_recorded'
-        setCurrentPhraseIndex(prev => prev + 1); // Move past the last index
+        setRecordingStatus('idle'); 
+        setCurrentPhraseIndex(prev => prev + 1); 
       }
     }
   };
@@ -177,15 +187,13 @@ export function AudioRecorder() {
     audioChunksRef.current = [];
     setRecordingTime(0);
     if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-    // Optionally re-fetch phrase if user wants to re-record current phrase instead of moving on
-    // For now, it just resets the recording state, keeping the current phrase
   };
 
   const discardAllSamples = () => {
     recordedSamples.forEach(sample => URL.revokeObjectURL(sample.audioUrl));
     setRecordedSamples([]);
     setCurrentPhraseIndex(0);
-    setCurrentPhrase(null); // This will trigger a new phrase fetch via useEffect
+    setCurrentPhrase(null); 
     resetCurrentRecording();
     toast({ title: "All samples discarded.", variant: "default" });
   }
@@ -207,21 +215,21 @@ export function AudioRecorder() {
     setRecordingStatus('submitting');
     toast({
       title: 'Submitting All Samples...',
-      description: `Submitting ${recordedSamples.length} samples for Speaker ID: ${speakerId.id}`,
+      description: `Submitting ${recordedSamples.length} samples for Speaker ID: ${speakerId}`,
     });
 
     for (const sample of recordedSamples) {
       await new Promise(resolve => setTimeout(resolve, 500)); 
-      console.log('Submitted audio:', sample.fileName, 'for Speaker ID:', sample.speakerId, 'Phrase:', sample.phraseText);
-      // In a real app:
+      console.log('Submitted audio:', sample.fileName, 'for Speaker ID:', sample.speakerId, 'Phrase:', sample.phraseText, 'Language:', sample.language);
+      // TODO: Implement Firebase Storage upload here
       // const audioBlob = await fetch(sample.audioUrl).then(res => res.blob());
       // const formData = new FormData();
       // formData.append('audio', audioBlob, sample.fileName);
       // formData.append('speakerId', sample.speakerId);
       // formData.append('phraseIndex', sample.phraseIndex.toString());
-      // formData.append('language', currentLanguage);
+      // formData.append('language', sample.language);
       // formData.append('phraseText', sample.phraseText);
-      // await fetch('/api/submit-audio', { method: 'POST', body: formData });
+      // await fetch('/api/submit-audio', { method: 'POST', body: formData }); // Example API endpoint
     }
     
     toast({
@@ -229,15 +237,32 @@ export function AudioRecorder() {
       description: 'Your audio samples have been submitted for verification.',
       variant: 'default',
     });
+    
+    // Cleanup and reset state for next recording session
+    recordedSamples.forEach(sample => URL.revokeObjectURL(sample.audioUrl));
     setRecordedSamples([]);
     setCurrentPhraseIndex(0);
-    setCurrentPhrase(null); // Trigger new phrase fetch for next session
+    setCurrentPhrase(null); 
     resetCurrentRecording(); 
   };
 
   const recordingProgress = (recordingTime / MAX_RECORDING_TIME_MS) * 100;
-  const isActionDisabled = isLoadingSpeakerId || recordingStatus === 'recording' || recordingStatus === 'submitting' || recordingStatus === 'generating_phrase';
+  const isActionDisabled = !userProfile || recordingStatus === 'recording' || recordingStatus === 'submitting' || recordingStatus === 'generating_phrase';
   const allPhrasesRecorded = currentPhraseIndex >= NUMBER_OF_PHRASES_TO_RECORD && audioUrl === null && recordedSamples.length === NUMBER_OF_PHRASES_TO_RECORD;
+
+
+  if (!userProfile) {
+    return (
+        <Card className="w-full max-w-lg shadow-lg bg-card">
+            <CardHeader>
+                <CardTitle>Please Log In</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">You need to be logged in to record audio samples.</p>
+            </CardContent>
+        </Card>
+    );
+  }
 
 
   return (
@@ -248,7 +273,7 @@ export function AudioRecorder() {
           Record Your Voice (Phrase {Math.min(currentPhraseIndex + 1, NUMBER_OF_PHRASES_TO_RECORD)} of {NUMBER_OF_PHRASES_TO_RECORD})
         </CardTitle>
         <CardDescription>
-          Read the following phrase clearly. Max {MAX_RECORDING_TIME_MS / 1000}s per phrase.
+          Language: {currentLanguage}. Read the following phrase clearly. Max {MAX_RECORDING_TIME_MS / 1000}s per phrase.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -297,7 +322,7 @@ export function AudioRecorder() {
               <Button variant="outline" size="sm" onClick={() => {
                 const a = document.createElement('a');
                 a.href = audioUrl;
-                a.download = `${speakerId?.id || 'unknown'}_phrase${currentPhraseIndex + 1}.webm`;
+                a.download = `${speakerId || 'unknown'}_phrase${currentPhraseIndex + 1}.webm`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -311,9 +336,8 @@ export function AudioRecorder() {
           </div>
         )}
         
-        {/* Button to manually fetch new phrase if generation fails */}
         {recordingStatus === 'error' && !currentPhrase && currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD && (
-          <Button onClick={fetchNewPhrase} variant="outline" className="w-full sm:w-auto" disabled={isActionDisabled}>
+          <Button onClick={fetchNewPhrase} variant="outline" className="w-full sm:w-auto" disabled={isActionDisabled || !currentLanguage}>
             <BrainCircuit className="mr-2 h-5 w-5" />
             Try Generating Phrase Again
           </Button>
@@ -324,11 +348,11 @@ export function AudioRecorder() {
           {(recordingStatus === 'idle' || recordingStatus === 'error') && !allPhrasesRecorded && currentPhrase && (
             <Button 
               onClick={startRecording} 
-              disabled={!speakerId || isActionDisabled || isLoadingSpeakerId || !!audioUrl} 
+              disabled={!speakerId || isActionDisabled || !!audioUrl || !currentLanguage} 
               className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {isLoadingSpeakerId ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Mic className="mr-2 h-5 w-5" />}
-              {isLoadingSpeakerId ? 'Loading ID...' : `Record Phrase ${currentPhraseIndex + 1}`}
+              {!currentLanguage ? <AlertTriangle className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
+              {!currentLanguage ? 'Language Not Set' : `Record Phrase ${currentPhraseIndex + 1}`}
             </Button>
           )}
 
@@ -352,11 +376,8 @@ export function AudioRecorder() {
             </Button>
           )}
         </div>
-         {isLoadingSpeakerId && recordingStatus === 'idle' && (
-            <p className="text-xs text-muted-foreground text-center">Please wait, fetching your Speaker ID...</p>
-        )}
-        {!speakerId && !isLoadingSpeakerId && recordingStatus === 'idle' && (
-            <p className="text-xs text-destructive text-center">Cannot record without a Speaker ID. Please refresh or register.</p>
+        {!speakerId && recordingStatus === 'idle' && (
+            <p className="text-xs text-destructive text-center">Cannot record without a Speaker ID. Please log in.</p>
         )}
         
         {recordedSamples.length > 0 && (

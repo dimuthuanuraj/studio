@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -18,11 +18,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { generateSpeakerId, type SpeakerProfile } from '@/services/speaker-id'; 
+import { addUser } from '@/services/user-service'; // Import addUser
 import { Loader2, UserPlus } from 'lucide-react';
-// import { useRouter } from 'next/navigation'; // If redirection is needed after registration
+import { Controller } from 'react-hook-form';
 
-// Basic regex for Sri Lankan WhatsApp numbers (starts with 07 or +947, followed by 8 digits)
-// This is a basic validation, a more robust one might be needed for production
+
 const whatsappRegex = /^(?:\+94|0)?7[0-9]{8}$/;
 
 const registrationSchema = z.object({
@@ -36,7 +36,6 @@ type RegistrationFormValues = z.infer<typeof registrationSchema>;
 
 export function RegistrationForm() {
   const { toast } = useToast();
-  // const router = useRouter(); // For redirection
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedSpeakerId, setGeneratedSpeakerId] = useState<string | null>(null);
 
@@ -45,7 +44,7 @@ export function RegistrationForm() {
     register,
     handleSubmit,
     formState: { errors },
-    control, // for react-hook-form's Controller
+    control, 
     reset,
   } = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
@@ -53,7 +52,7 @@ export function RegistrationForm() {
       fullName: '',
       email: '',
       whatsappNumber: '',
-      language: undefined, // Default to undefined for Select placeholder
+      language: undefined, 
     }
   });
 
@@ -71,20 +70,20 @@ export function RegistrationForm() {
         email: data.email,
         whatsappNumber: data.whatsappNumber,
         language: data.language,
+        // registrationDate: new Date().toISOString(), // Add registration date
       };
 
-      // Simulate storing user data (e.g., in Firestore)
-      console.log('User Registered:', speakerProfile);
-      // Example: await createUserInFirestore(speakerProfile);
+      addUser(speakerProfile); // Add user to mock user service
 
+      console.log('User Registered:', speakerProfile);
+      
       setGeneratedSpeakerId(newSpeakerId);
 
       toast({
         title: 'Registration Successful!',
-        description: `Welcome, ${data.fullName}! Your Speaker ID is ${newSpeakerId}.`,
+        description: `Welcome, ${data.fullName}! Your Speaker ID is ${newSpeakerId}. Please save it.`,
       });
-      reset(); // Reset form fields
-      // Optionally redirect: router.push('/dashboard'); 
+      reset(); 
     } catch (error) {
       console.error('Registration failed:', error);
       toast({
@@ -171,12 +170,12 @@ export function RegistrationForm() {
             )}
             {isSubmitting ? 'Registering...' : 'Register'}
           </Button>
-          {generatedSpeakerId && (
+          {generatedSpeakerId && !isSubmitting && ( // Only show if registration was successful and not submitting
             <div className="mt-4 p-3 bg-primary/10 border border-primary rounded-md text-center">
               <p className="text-sm text-primary">
                 Registration successful! Your Speaker ID: <strong>{generatedSpeakerId}</strong>
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Please note down your Speaker ID for future reference.</p>
+              <p className="text-xs text-muted-foreground mt-1">Please note down your Speaker ID. You will need it to log in.</p>
             </div>
           )}
         </CardFooter>

@@ -1,19 +1,23 @@
+
 'use client';
 
-import { useSpeakerId } from '@/hooks/useSpeakerId';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Copy, UserSquare2 } from 'lucide-react'; // Changed to UserSquare2 for a slightly different look
+import { Copy, UserSquare2 } from 'lucide-react';
 
-export function SpeakerIdDisplay() {
-  const { speakerId, isLoading } = useSpeakerId();
+interface SpeakerIdDisplayProps {
+  speakerId: string | undefined | null; 
+  isLoading?: boolean; // Optional loading state, defaults to false
+}
+
+export function SpeakerIdDisplay({ speakerId, isLoading = false }: SpeakerIdDisplayProps) {
   const { toast } = useToast();
 
   const handleCopyId = () => {
     if (speakerId) {
-      navigator.clipboard.writeText(speakerId.id) // Access the id property
+      navigator.clipboard.writeText(speakerId)
         .then(() => {
           toast({
             title: "Speaker ID Copied!",
@@ -48,14 +52,14 @@ export function SpeakerIdDisplay() {
         ) : speakerId ? (
           <div className="flex items-center justify-between space-x-3 p-3 bg-secondary rounded-md">
             <p className="text-lg font-mono text-foreground flex-grow break-all">
-              {speakerId.id}
+              {speakerId}
             </p>
             <Button variant="ghost" size="icon" onClick={handleCopyId} aria-label="Copy Speaker ID" className="text-accent hover:text-accent/90">
               <Copy className="h-5 w-5" />
             </Button>
           </div>
         ) : (
-          <p className="text-destructive font-medium p-3 bg-destructive/10 rounded-md">Could not generate or load Speaker ID.</p>
+          <p className="text-destructive font-medium p-3 bg-destructive/10 rounded-md">Speaker ID not available.</p>
         )}
       </CardContent>
     </Card>
