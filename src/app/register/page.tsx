@@ -1,8 +1,17 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/header';
 import { RegistrationForm } from '@/components/registration-form';
 
 export default function RegisterPage() {
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
+  
   return (
     <div className="flex flex-col min-h-screen bg-secondary">
       <Header />
@@ -20,8 +29,9 @@ export default function RegisterPage() {
         </div>
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t bg-card">
-        © {new Date().getFullYear()} VoiceID Lanka. All rights reserved.
+        © {currentYear} LankaVoiceID University of Jaffna. All rights reserved.
       </footer>
     </div>
   );
 }
+

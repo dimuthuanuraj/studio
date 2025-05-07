@@ -16,12 +16,14 @@ type RecordingLanguage = 'Sinhala' | 'Tamil' | 'English';
 export default function HomePage() {
   const authContext = useContext(AuthContext);
   const [selectedRecordingLanguage, setSelectedRecordingLanguage] = useState<RecordingLanguage | null>(null);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     // Reset selected language if user logs out
     if (!authContext?.loggedInUser) {
       setSelectedRecordingLanguage(null);
     }
+    setCurrentYear(new Date().getFullYear());
   }, [authContext?.loggedInUser]);
 
   if (!authContext) {
@@ -125,7 +127,7 @@ export default function HomePage() {
         )}
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t bg-card">
-        © {new Date().getFullYear()} VoiceID Lanka. All rights reserved.
+        © {currentYear} LankaVoiceID University of Jaffna. All rights reserved.
       </footer>
     </div>
   );

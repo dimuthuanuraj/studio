@@ -13,6 +13,7 @@ const ADMIN_LOGGED_IN_KEY = 'isAdminLoggedIn';
 export default function AdminPage() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     const storedLoginStatus = localStorage.getItem(ADMIN_LOGGED_IN_KEY);
@@ -20,6 +21,7 @@ export default function AdminPage() {
       setIsAdminLoggedIn(true);
     }
     setIsLoading(false);
+    setCurrentYear(new Date().getFullYear());
   }, []);
 
   const handleAdminLoginSuccess = () => {
@@ -68,8 +70,9 @@ export default function AdminPage() {
         )}
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t bg-card">
-        © {new Date().getFullYear()} VoiceID Lanka. {isAdminLoggedIn ? 'Admin Panel.' : 'Secure Access.'}
+        © {currentYear} LankaVoiceID University of Jaffna. {isAdminLoggedIn ? 'Admin Panel.' : 'Secure Access.'}
       </footer>
     </div>
   );
 }
+
