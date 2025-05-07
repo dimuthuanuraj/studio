@@ -1,20 +1,30 @@
 
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { Header } from '@/components/header';
 import { SpeakerIdDisplay } from '@/components/speaker-id-display';
 import { AudioRecorder } from '@/components/audio-recorder';
 import { LoginForm } from '@/components/login-form';
-import { AuthContext, type SpeakerProfile } from '@/contexts/auth-context'; // Assuming SpeakerProfile is exported from AuthContext
+import { AuthContext, type SpeakerProfile } from '@/contexts/auth-context'; 
 import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { LogOut, Languages, Check } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+
+type RecordingLanguage = 'Sinhala' | 'Tamil' | 'English';
 
 export default function HomePage() {
   const authContext = useContext(AuthContext);
+  const [selectedRecordingLanguage, setSelectedRecordingLanguage] = useState<RecordingLanguage | null>(null);
+
+  useEffect(() => {
+    // Reset selected language if user logs out
+    if (!authContext?.loggedInUser) {
+      setSelectedRecordingLanguage(null);
+    }
+  }, [authContext?.loggedInUser]);
 
   if (!authContext) {
-    // This should ideally not happen if AuthProvider is correctly set up in layout
     return (
       <div>
         Error: AuthContext not found. Please ensure AuthProvider wraps your application.
@@ -26,6 +36,15 @@ export default function HomePage() {
 
   const handleLoginSuccess = (user: SpeakerProfile) => {
     loginUser(user);
+    // Do not automatically set language here, let user choose
+  };
+
+  const handleLanguageSelect = (language: RecordingLanguage) => {
+    setSelectedRecordingLanguage(language);
+  };
+
+  const handleChangeLanguage = () => {
+    setSelectedRecordingLanguage(null); // Go back to language selection
   };
 
   return (
@@ -44,10 +63,32 @@ export default function HomePage() {
             </div>
             <LoginForm onLoginSuccess={handleLoginSuccess} />
           </>
+        ) : !selectedRecordingLanguage ? (
+          <Card className="w-full max-w-md shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl text-primary">Select Recording Language</CardTitle>
+              <CardDescription>Choose the language you want to record samples in for this session. Your native language is {loggedInUser.language}.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col space-y-3">
+              {(['Sinhala', 'Tamil', 'English'] as RecordingLanguage[]).map((lang) => (
+                <Button 
+                  key={lang} 
+                  onClick={() => handleLanguageSelect(lang)} 
+                  variant="outline"
+                  className="justify-start text-lg py-6"
+                >
+                  <Languages className="mr-3 h-5 w-5" /> {lang}
+                </Button>
+              ))}
+               <Button variant="ghost" onClick={logoutUser} size="sm" className="mt-4 self-start text-muted-foreground">
+                  <LogOut className="mr-2 h-4 w-4" /> Logout
+                </Button>
+            </CardContent>
+          </Card>
         ) : (
           <>
             <div className="text-center w-full">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-2">
                  <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">
                     Voice Recording
                  </h1>
@@ -55,12 +96,20 @@ export default function HomePage() {
                   <LogOut className="mr-2 h-4 w-4" /> Logout
                 </Button>
               </div>
-              <p className="mt-2 text-lg text-muted-foreground">
-                Welcome back, {loggedInUser.fullName}! Record your voice sample for speaker verification.
+              <p className="mt-1 text-lg text-muted-foreground">
+                Welcome back, {loggedInUser.fullName}! 
               </p>
+              <div className="mt-2 flex items-center justify-center space-x-2">
+                 <p className="text-md text-muted-foreground">
+                    Recording in: <span className="font-semibold text-accent">{selectedRecordingLanguage}</span>
+                 </p>
+                 <Button variant="link" onClick={handleChangeLanguage} size="sm" className="text-accent p-0 h-auto">
+                    (Change Language)
+                  </Button>
+              </div>
             </div>
             <SpeakerIdDisplay speakerId={loggedInUser.speakerId} />
-            <AudioRecorder userProfile={loggedInUser} />
+            <AudioRecorder userProfile={loggedInUser} sessionLanguage={selectedRecordingLanguage} />
           </>
         )}
       </main>
@@ -70,4 +119,3 @@ export default function HomePage() {
     </div>
   );
 }
-

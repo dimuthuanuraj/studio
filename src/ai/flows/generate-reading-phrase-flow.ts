@@ -11,7 +11,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateReadingPhraseInputSchema = z.object({
-  language: z.enum(['Sinhala', 'Tamil']).describe('The language for the phrase (Sinhala or Tamil).'),
+  language: z.enum(['Sinhala', 'Tamil', 'English']).describe('The language for the phrase (Sinhala, Tamil, or English).'),
 });
 export type GenerateReadingPhraseInput = z.infer<typeof GenerateReadingPhraseInputSchema>;
 
@@ -30,7 +30,7 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateReadingPhraseOutputSchema},
   prompt: `You are a creative assistant tasked with generating short, natural-sounding sentences for a voice recording application.
 The sentence should be in {{language}}.
-The sentence must be suitable for a native speaker to read aloud in approximately 8 to 15 seconds.
+The sentence must be suitable for a native or fluent speaker to read aloud in approximately 8 to 15 seconds.
 The sentence should be grammatically correct, common, and easy to understand. Avoid complex jargon, proper nouns (unless very common like a country name), or overly specific topics.
 Generate only one sentence.
 
@@ -39,6 +39,7 @@ Desired reading time: 8-15 seconds.
 
 Example for Sinhala (if language is Sinhala): "අහස නිල් පාටයි, සමහර වලාකුළු සුදු පාටයි, ඒ වගේම හිරු එළිය දීප්තිමත්ව බබලනවා."
 Example for Tamil (if language is Tamil): "வானம் நீல நிறமாகவும், சில மேகங்கள் வெண்மையாகவும், சூரியன் பிரகாசமாகவும் பிரகாசிக்கிறது."
+Example for English (if language is English): "The sky is blue, some clouds are white, and the sun is shining brightly."
 
 Return ONLY the generated sentence as the 'phrase' output.
 `,

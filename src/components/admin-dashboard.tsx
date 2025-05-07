@@ -5,7 +5,7 @@ import type { RefObject } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Play, Download, Eye, Users, FileAudio, CheckCircle2, XCircle, Hourglass, RefreshCw, Loader2, Languages } from 'lucide-react';
+import { Play, Download, Eye, Users, FileAudio, CheckCircle2, XCircle, Hourglass, RefreshCw, Loader2, Languages, Mic2 } from 'lucide-react'; // Added Mic2
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -15,15 +15,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // No longer needed here if we manually control
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+
+type RecordingLanguage = 'Sinhala' | 'Tamil' | 'English';
 
 interface AudioSample {
   id: string;
   speakerId: string;
   speakerName?: string;
-  speakerLanguage?: 'Sinhala' | 'Tamil' | string;
+  nativeLanguage?: 'Sinhala' | 'Tamil' | string; // Renamed from speakerLanguage to nativeLanguage
+  recordedLanguage: RecordingLanguage; // New field for the language the sample was recorded in
   timestamp: string;
   duration: string; 
   status: 'pending' | 'verified' | 'rejected';
@@ -33,11 +35,11 @@ interface AudioSample {
 }
 
 const initialMockAudioSamples: AudioSample[] = [
-  { id: 'sample001', speakerId: 'sid-user-001', speakerName: 'Kamal Perera', speakerLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'sid-user-001_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 },
-  { id: 'sample002', speakerId: 'sid-user-002', speakerName: 'Nimali Silva', speakerLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'sid-user-002_phrase2.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2 },
-  { id: 'sample003', speakerId: 'sid-user-001', speakerName: 'Kamal Perera', speakerLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), duration: '0:10', status: 'rejected', fileName: 'sid-user-001_phrase3.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 3 },
-  { id: 'sample004', speakerId: 'sid-user-003', speakerName: 'Saman Kumara', speakerLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), duration: '0:28', status: 'pending', fileName: 'sid-user-003_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 },
-  { id: 'sample005', speakerId: 'sid-user-002', speakerName: 'Nimali Silva', speakerLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), duration: '0:19', status: 'verified', fileName: 'sid-user-002_phrase4.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 4 },
+  { id: 'sample001', speakerId: 'sid-user-001', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'sid-user-001_sinhala_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 },
+  { id: 'sample002', speakerId: 'sid-user-002', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'sid-user-002_tamil_phrase2.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2 },
+  { id: 'sample003', speakerId: 'sid-user-001', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), duration: '0:10', status: 'rejected', fileName: 'sid-user-001_english_phrase3.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 3 },
+  { id: 'sample004', speakerId: 'sid-user-003', speakerName: 'Saman Kumara', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), duration: '0:28', status: 'pending', fileName: 'sid-user-003_sinhala_phrase1.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1 },
+  { id: 'sample005', speakerId: 'sid-user-002', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), duration: '0:19', status: 'verified', fileName: 'sid-user-002_english_phrase4.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 4 },
 ];
 
 
@@ -45,14 +47,16 @@ export function AdminDashboard() {
   const [audioSamples, setAudioSamples] = useState<AudioSample[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSample, setSelectedSample] = useState<AudioSample | null>(null);
-  // isAlertDialogOpen is now implicitly handled by !!selectedSample
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const { toast } = useToast();
 
   const fetchData = () => {
     setIsLoading(true);
+    // Simulate fetching data
     setTimeout(() => {
-      setAudioSamples(initialMockAudioSamples);
+      // In a real app, sort by timestamp descending by default
+      const sortedSamples = [...initialMockAudioSamples].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setAudioSamples(sortedSamples);
       setIsLoading(false);
     }, 1000);
   };
@@ -65,7 +69,8 @@ export function AdminDashboard() {
         setCurrentAudio(null);
       }
     };
-  }, []); // currentAudio dependency removed to avoid re-running on audio change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
 
   const handlePlayAudio = (sample: AudioSample) => {
     if (currentAudio) {
@@ -103,16 +108,12 @@ export function AdminDashboard() {
           s.id === sampleId ? { ...s, status: newStatus } : s
         )
       );
-      setSelectedSample(null); // Close dialog after update by clearing selectedSample
+      setSelectedSample(null);
       setIsLoading(false);
       toast({ title: "Status Updated", description: `Sample ${sampleId} marked as ${newStatus}.` });
     }, 500);
   };
 
-  // handleViewDetails now only sets the sample. The dialog opening is controlled by `!!selectedSample`.
-  // const handleViewDetails = (sample: AudioSample) => {
-  //   setSelectedSample(sample);
-  // };
 
   const getStatusBadgeVariant = (status: AudioSample['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
@@ -143,7 +144,7 @@ export function AdminDashboard() {
   const totalSubmissions = audioSamples.length;
   const uniqueSpeakers = new Set(audioSamples.map(s => s.speakerId)).size;
   const pendingReview = audioSamples.filter(s => s.status === 'pending').length;
-  const totalLanguages = new Set(audioSamples.map(s => s.speakerLanguage).filter(Boolean)).size;
+  const recordedLanguagesCount = new Set(audioSamples.map(s => s.recordedLanguage)).size;
 
 
   return (
@@ -187,13 +188,13 @@ export function AdminDashboard() {
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Languages</CardTitle>
-            <Languages className="h-5 w-5 text-primary" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Recorded Languages</CardTitle>
+            <Mic2 className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{isLoading ? <Loader2 className="h-6 w-6 animate-spin inline-block" /> : totalLanguages}</div>
+            <div className="text-3xl font-bold text-foreground">{isLoading ? <Loader2 className="h-6 w-6 animate-spin inline-block" /> : recordedLanguagesCount}</div>
             <p className="text-xs text-muted-foreground">
-              Unique languages submitted
+              Unique languages in samples
             </p>
           </CardContent>
         </Card>
@@ -223,7 +224,8 @@ export function AdminDashboard() {
                   <TableRow>
                     <TableHead className="w-[120px]">Speaker ID</TableHead>
                     <TableHead>Speaker Name</TableHead>
-                    <TableHead>Language</TableHead>
+                    <TableHead>Native Lang.</TableHead>
+                    <TableHead>Recorded Lang.</TableHead>
                     <TableHead>Filename</TableHead>
                     <TableHead>Timestamp</TableHead>
                     <TableHead>Duration</TableHead>
@@ -236,7 +238,12 @@ export function AdminDashboard() {
                     <TableRow key={sample.id} className="hover:bg-muted/50">
                       <TableCell className="font-medium truncate max-w-[120px]">{sample.speakerId}</TableCell>
                       <TableCell>{sample.speakerName || 'N/A'}</TableCell>
-                      <TableCell>{sample.speakerLanguage || 'N/A'}</TableCell>
+                      <TableCell>{sample.nativeLanguage || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge variant={sample.recordedLanguage === sample.nativeLanguage ? "outline" : "secondary"} className="text-xs">
+                          {sample.recordedLanguage || 'N/A'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="truncate max-w-[200px]">{sample.fileName}</TableCell>
                       <TableCell>{new Date(sample.timestamp).toLocaleString()}</TableCell>
                       <TableCell>{sample.duration}</TableCell>
@@ -253,7 +260,6 @@ export function AdminDashboard() {
                         <Button variant="ghost" size="icon" onClick={() => handleDownloadAudio(sample)} title="Download Audio" className="hover:text-primary">
                           <Download className="h-4 w-4" />
                         </Button>
-                        {/* Button directly opens dialog by setting selectedSample */}
                         <Button variant="ghost" size="icon" onClick={() => setSelectedSample(sample)} title="View & Update Status" className="hover:text-accent">
                             <Eye className="h-4 w-4" />
                         </Button>
@@ -270,12 +276,11 @@ export function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* AlertDialog is now controlled by selectedSample state */}
       <AlertDialog open={!!selectedSample} onOpenChange={(open) => {
-        if (!open) setSelectedSample(null); // Clear selectedSample when dialog closes
+        if (!open) setSelectedSample(null);
       }}>
         <AlertDialogContent>
-          {selectedSample && ( // Ensure selectedSample is not null before accessing its properties
+          {selectedSample && ( 
             <>
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-primary">Review Sample: {selectedSample.fileName}</AlertDialogTitle>
@@ -283,7 +288,8 @@ export function AdminDashboard() {
                   <div className="space-y-1 text-sm">
                       <p><strong>Speaker ID:</strong> {selectedSample.speakerId}</p>
                       {selectedSample.speakerName && <p><strong>Speaker Name:</strong> {selectedSample.speakerName}</p>}
-                      {selectedSample.speakerLanguage && <p><strong>Language:</strong> {selectedSample.speakerLanguage}</p>}
+                      {selectedSample.nativeLanguage && <p><strong>Native Language:</strong> {selectedSample.nativeLanguage}</p>}
+                      <p><strong>Recorded Language:</strong> {selectedSample.recordedLanguage}</p>
                       {selectedSample.phraseIndex && <p><strong>Phrase No:</strong> {selectedSample.phraseIndex}</p>}
                       <p><strong>Submitted:</strong> {new Date(selectedSample.timestamp).toLocaleString()}</p>
                       <p><strong>Duration:</strong> {selectedSample.duration}</p>

@@ -5,21 +5,23 @@ import { useState, useRef, useEffect, type RefObject } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mic, StopCircle, Send, Play, Download, AlertTriangle, Trash2, Loader2, ChevronRight, RefreshCcw, BrainCircuit } from 'lucide-react';
+import { Mic, StopCircle, Send, Play, Download, AlertTriangle, Trash2, Loader2, ChevronRight, RefreshCcw, BrainCircuit, Languages } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { generateReadingPhrase } from '@/ai/flows/generate-reading-phrase-flow';
 import type { SpeakerProfile } from '@/contexts/auth-context'; // Import SpeakerProfile
 
 type RecordingStatus = 'idle' | 'recording' | 'stopped' | 'submitting' | 'error' | 'generating_phrase';
+type RecordingLanguage = 'Sinhala' | 'Tamil' | 'English';
 
 const MAX_RECORDING_TIME_MS = 20000; 
 const NUMBER_OF_PHRASES_TO_RECORD = 5;
 
 interface AudioRecorderProps {
-  userProfile: SpeakerProfile | null; // Accept user profile as prop
+  userProfile: SpeakerProfile | null; 
+  sessionLanguage: RecordingLanguage; // New prop for session language
 }
 
-export function AudioRecorder({ userProfile }: AudioRecorderProps) {
+export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderProps) {
   const { toast } = useToast();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -32,15 +34,15 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
   const [currentPhrase, setCurrentPhrase] = useState<string | null>(null);
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
 
-  const [recordedSamples, setRecordedSamples] = useState<Array<{ phraseIndex: number; audioUrl: string; speakerId: string; fileName: string, phraseText: string, language: string }>>([]);
+  const [recordedSamples, setRecordedSamples] = useState<Array<{ phraseIndex: number; audioUrl: string; speakerId: string; fileName: string, phraseText: string, language: RecordingLanguage }>>([]);
 
   const speakerId = userProfile?.speakerId;
-  const currentLanguage = userProfile?.language;
+  // const currentLanguage = userProfile?.language; // Native language, sessionLanguage is now used for recording
 
 
   const fetchNewPhrase = async () => {
-    if (!currentLanguage) {
-      setErrorMessage("User language not set. Cannot fetch phrase.");
+    if (!sessionLanguage) {
+      setErrorMessage("Session language not set. Cannot fetch phrase.");
       setRecordingStatus('error');
       return;
     }
@@ -48,7 +50,7 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
     setCurrentPhrase(null);
     setErrorMessage(null);
     try {
-      const generatedPhrase = await generateReadingPhrase({ language: currentLanguage });
+      const generatedPhrase = await generateReadingPhrase({ language: sessionLanguage });
       setCurrentPhrase(generatedPhrase.phrase);
       setRecordingStatus('idle');
     } catch (error) {
@@ -64,11 +66,11 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
   };
 
   useEffect(() => {
-    if (userProfile && currentLanguage && currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD && !currentPhrase && recordingStatus !== 'generating_phrase') {
+    if (userProfile && sessionLanguage && currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD && !currentPhrase && recordingStatus !== 'generating_phrase') {
       fetchNewPhrase();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile, currentLanguage, currentPhraseIndex, recordingStatus]);
+  }, [userProfile, sessionLanguage, currentPhraseIndex, recordingStatus]);
 
   useEffect(() => {
     return () => {
@@ -160,17 +162,18 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
   };
 
   const saveAndNextPhrase = () => {
-    if (audioUrl && speakerId && currentPhrase && currentLanguage) {
-      const fileName = `${speakerId}_phrase${currentPhraseIndex + 1}.webm`;
-      const newSample = { phraseIndex: currentPhraseIndex, audioUrl, speakerId, fileName, phraseText: currentPhrase, language: currentLanguage };
+    if (audioUrl && speakerId && currentPhrase && sessionLanguage) {
+      const fileName = `${speakerId}_${sessionLanguage.toLowerCase()}_phrase${currentPhraseIndex + 1}.webm`;
+      const newSample = { phraseIndex: currentPhraseIndex, audioUrl, speakerId, fileName, phraseText: currentPhrase, language: sessionLanguage };
       setRecordedSamples(prev => [...prev, newSample]);
       setAudioUrl(null); 
       setCurrentPhrase(null); 
       
       if (currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD - 1) {
         setCurrentPhraseIndex(prev => prev + 1);
+        // fetchNewPhrase(); // Will be triggered by useEffect
       } else {
-        toast({ title: "All Phrases Recorded!", description: "You can now submit all samples." });
+        toast({ title: "All Phrases Recorded!", description: `You have recorded all ${NUMBER_OF_PHRASES_TO_RECORD} phrases in ${sessionLanguage}. You can now submit.` });
         setRecordingStatus('idle'); 
         setCurrentPhraseIndex(prev => prev + 1); 
       }
@@ -195,14 +198,15 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
     setCurrentPhraseIndex(0);
     setCurrentPhrase(null); 
     resetCurrentRecording();
-    toast({ title: "All samples discarded.", variant: "default" });
+    toast({ title: "All samples for this session discarded.", variant: "default" });
+    // fetchNewPhrase(); // Trigger fetching the first phrase again
   }
 
   const handleSubmitAll = async () => {
     if (recordedSamples.length === 0) {
       toast({
         title: 'Submission Error',
-        description: 'No audio samples recorded. Please record samples for the phrases.',
+        description: `No audio samples recorded for ${sessionLanguage}. Please record samples for the phrases.`,
         variant: 'destructive',
       });
       return;
@@ -214,7 +218,7 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
 
     setRecordingStatus('submitting');
     toast({
-      title: 'Submitting All Samples...',
+      title: `Submitting Samples for ${sessionLanguage}...`,
       description: `Submitting ${recordedSamples.length} samples for Speaker ID: ${speakerId}`,
     });
 
@@ -227,14 +231,14 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
       // formData.append('audio', audioBlob, sample.fileName);
       // formData.append('speakerId', sample.speakerId);
       // formData.append('phraseIndex', sample.phraseIndex.toString());
-      // formData.append('language', sample.language);
+      // formData.append('language', sample.language); // This is sessionLanguage
       // formData.append('phraseText', sample.phraseText);
       // await fetch('/api/submit-audio', { method: 'POST', body: formData }); // Example API endpoint
     }
     
     toast({
-      title: 'All Samples Submitted!',
-      description: 'Your audio samples have been submitted for verification.',
+      title: `All Samples for ${sessionLanguage} Submitted!`,
+      description: `Your audio samples in ${sessionLanguage} have been submitted.`,
       variant: 'default',
     });
     
@@ -244,10 +248,11 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
     setCurrentPhraseIndex(0);
     setCurrentPhrase(null); 
     resetCurrentRecording(); 
+    // fetchNewPhrase(); // Fetch new phrase for potentially new session
   };
 
   const recordingProgress = (recordingTime / MAX_RECORDING_TIME_MS) * 100;
-  const isActionDisabled = !userProfile || recordingStatus === 'recording' || recordingStatus === 'submitting' || recordingStatus === 'generating_phrase';
+  const isActionDisabled = !userProfile || recordingStatus === 'recording' || recordingStatus === 'submitting' || recordingStatus === 'generating_phrase' || !sessionLanguage;
   const allPhrasesRecorded = currentPhraseIndex >= NUMBER_OF_PHRASES_TO_RECORD && audioUrl === null && recordedSamples.length === NUMBER_OF_PHRASES_TO_RECORD;
 
 
@@ -263,6 +268,19 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
         </Card>
     );
   }
+  
+  if (!sessionLanguage) {
+     return (
+        <Card className="w-full max-w-lg shadow-lg bg-card">
+            <CardHeader>
+                <CardTitle>Language Not Selected</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">Please select a language on the previous page to start recording.</p>
+            </CardContent>
+        </Card>
+    );
+  }
 
 
   return (
@@ -270,10 +288,10 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
       <CardHeader>
         <CardTitle className="flex items-center text-xl text-primary">
           <Mic className="mr-3 h-6 w-6" />
-          Record Your Voice (Phrase {Math.min(currentPhraseIndex + 1, NUMBER_OF_PHRASES_TO_RECORD)} of {NUMBER_OF_PHRASES_TO_RECORD})
+          Record in {sessionLanguage} (Phrase {Math.min(currentPhraseIndex + 1, NUMBER_OF_PHRASES_TO_RECORD)} of {NUMBER_OF_PHRASES_TO_RECORD})
         </CardTitle>
         <CardDescription>
-          Language: {currentLanguage}. Read the following phrase clearly. Max {MAX_RECORDING_TIME_MS / 1000}s per phrase.
+          Read the following phrase clearly. Max {MAX_RECORDING_TIME_MS / 1000}s per phrase. Native language: {userProfile.language}.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -281,7 +299,7 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
             {recordingStatus === 'generating_phrase' && (
                 <div className="text-center text-muted-foreground">
                     <Loader2 className="h-6 w-6 mx-auto animate-spin mb-2 text-primary" />
-                    <p className="text-sm">Generating a new phrase for you...</p>
+                    <p className="text-sm">Generating a new {sessionLanguage} phrase...</p>
                 </div>
             )}
             {currentPhrase && recordingStatus !== 'generating_phrase' && (
@@ -290,10 +308,10 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
                 </p>
             )}
             {!currentPhrase && recordingStatus === 'idle' && currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD && (
-                 <p className="text-sm text-muted-foreground">Waiting for phrase...</p>
+                 <p className="text-sm text-muted-foreground">Waiting for {sessionLanguage} phrase...</p>
             )}
              {allPhrasesRecorded && (
-                <p className="text-lg font-semibold text-center text-primary">All phrases recorded. Ready to submit!</p>
+                <p className="text-lg font-semibold text-center text-primary">All {sessionLanguage} phrases recorded. Ready to submit!</p>
             )}
         </div>
 
@@ -316,13 +334,13 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
 
         {audioUrl && (recordingStatus === 'stopped' || recordingStatus === 'submitting') && currentPhrase && (
           <div className="space-y-3">
-            <p className="font-medium text-center text-primary">Preview for phrase {currentPhraseIndex + 1}</p>
+            <p className="font-medium text-center text-primary">Preview for {sessionLanguage} phrase {currentPhraseIndex + 1}</p>
             <audio controls src={audioUrl} className="w-full rounded-md" />
             <div className="flex justify-center space-x-2 pt-2">
               <Button variant="outline" size="sm" onClick={() => {
                 const a = document.createElement('a');
                 a.href = audioUrl;
-                a.download = `${speakerId || 'unknown'}_phrase${currentPhraseIndex + 1}.webm`;
+                a.download = `${speakerId || 'unknown'}_${sessionLanguage.toLowerCase()}_phrase${currentPhraseIndex + 1}.webm`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -337,7 +355,7 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
         )}
         
         {recordingStatus === 'error' && !currentPhrase && currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD && (
-          <Button onClick={fetchNewPhrase} variant="outline" className="w-full sm:w-auto" disabled={isActionDisabled || !currentLanguage}>
+          <Button onClick={fetchNewPhrase} variant="outline" className="w-full sm:w-auto" disabled={isActionDisabled || !sessionLanguage}>
             <BrainCircuit className="mr-2 h-5 w-5" />
             Try Generating Phrase Again
           </Button>
@@ -348,11 +366,11 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
           {(recordingStatus === 'idle' || recordingStatus === 'error') && !allPhrasesRecorded && currentPhrase && (
             <Button 
               onClick={startRecording} 
-              disabled={!speakerId || isActionDisabled || !!audioUrl || !currentLanguage} 
+              disabled={!speakerId || isActionDisabled || !!audioUrl || !sessionLanguage} 
               className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {!currentLanguage ? <AlertTriangle className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
-              {!currentLanguage ? 'Language Not Set' : `Record Phrase ${currentPhraseIndex + 1}`}
+              {!sessionLanguage ? <AlertTriangle className="mr-2 h-5 w-5" /> : <Mic className="mr-2 h-5 w-5" />}
+              {!sessionLanguage ? 'Language Not Set' : `Record Phrase ${currentPhraseIndex + 1}`}
             </Button>
           )}
 
@@ -372,7 +390,7 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
               disabled={!speakerId || isActionDisabled || !audioUrl} 
               className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
             >
-              Save & Next Phrase <ChevronRight className="ml-2 h-5 w-5" />
+              Save & Next {sessionLanguage} Phrase <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
           )}
         </div>
@@ -382,7 +400,7 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
         
         {recordedSamples.length > 0 && (
             <div className="mt-4 space-y-2">
-                <h4 className="text-sm font-medium text-muted-foreground">Recorded Samples: {recordedSamples.length} / {NUMBER_OF_PHRASES_TO_RECORD}</h4>
+                <h4 className="text-sm font-medium text-muted-foreground">Recorded {sessionLanguage} Samples: {recordedSamples.length} / {NUMBER_OF_PHRASES_TO_RECORD}</h4>
                  <Progress value={(recordedSamples.length / NUMBER_OF_PHRASES_TO_RECORD) * 100} className="w-full h-2 [&>div]:bg-accent" />
             </div>
         )}
@@ -395,11 +413,11 @@ export function AudioRecorder({ userProfile }: AudioRecorderProps) {
           className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
         >
           {recordingStatus === 'submitting' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
-          {recordingStatus === 'submitting' ? 'Submitting All...' : `Submit All (${recordedSamples.length}) Samples`}
+          {recordingStatus === 'submitting' ? 'Submitting All...' : `Submit All ${sessionLanguage} (${recordedSamples.length}) Samples`}
         </Button>
         {recordedSamples.length > 0 && (
              <Button variant="outline" onClick={discardAllSamples} className="w-full" disabled={recordingStatus === 'submitting'}>
-                <RefreshCcw className="mr-2 h-4 w-4" /> Discard All & Restart
+                <RefreshCcw className="mr-2 h-4 w-4" /> Discard All & Restart Session
             </Button>
         )}
       </CardFooter>
