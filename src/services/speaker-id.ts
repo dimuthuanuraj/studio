@@ -15,33 +15,22 @@ export interface SpeakerProfile {
   speakerId: string;
   fullName: string;
   language: 'Sinhala' | 'Tamil';
-  // email?: string; // Optional: if email is collected
+  email: string;
+  whatsappNumber: string;
   // registrationDate?: string; // Optional: ISO date string
 }
 
 
-const SPEAKER_ID_STORAGE_KEY = 'voiceIdLankaSpeakerId';
+const LAST_SPEAKER_NUMERIC_ID_KEY = 'voiceIdLankaLastNumericId';
+const STARTING_NUMERIC_ID = 90000;
 
 /**
- * Generates a pseudo-random alphanumeric string with a prefix.
- * Not cryptographically secure, intended for client-side unique ID generation.
- * @param length The length of the random part of the ID to generate (excluding prefix).
- * @returns A pseudo-random string (e.g., "sid-xxxxxxxxxxxxxxxx").
- */
-function generatePseudoRandomId(length: number = 16): string {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let randomPart = '';
-  for (let i = 0; i < length; i++) {
-    randomPart += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return `sid-${randomPart}`;
-}
-
-/**
- * Asynchronously generates or retrieves a unique Speaker ID.
- * This implementation prioritizes retrieving an ID from localStorage if one exists.
- * If no ID is found, a new one is generated and stored.
- * This is suitable for client-side speaker identification before full authentication/backend integration.
+ * Asynchronously generates or retrieves a unique Speaker ID in a sequential manner.
+ * Starts from 'id90000', 'id90001', and so on.
+ * This implementation uses localStorage to keep track of the last assigned numeric ID.
+ * Note: This client-side sequential ID generation is suitable for prototypes
+ * but is NOT ROBUST for production environments with multiple concurrent users,
+ * as race conditions can occur. A backend-managed atomic counter is required for production.
  *
  * @returns A promise that resolves to a SpeakerId object containing the unique identifier.
  */
@@ -49,36 +38,41 @@ export async function generateSpeakerId(): Promise<SpeakerId> {
   // Ensure this runs only on the client-side
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      let storedId = localStorage.getItem(SPEAKER_ID_STORAGE_KEY);
-      if (storedId) {
-        // Basic validation for the stored ID format (optional but good practice)
-        if (storedId.startsWith('sid-') && storedId.length > 4) {
-          return { id: storedId };
+      let lastNumericIdStr = localStorage.getItem(LAST_SPEAKER_NUMERIC_ID_KEY);
+      let currentNumericId: number;
+
+      if (lastNumericIdStr) {
+        const lastNumericId = parseInt(lastNumericIdStr, 10);
+        if (!isNaN(lastNumericId) && lastNumericId >= STARTING_NUMERIC_ID) {
+          currentNumericId = lastNumericId + 1;
         } else {
-          console.warn("Invalid Speaker ID format in localStorage. Generating a new one.");
-          // Fall through to generate a new ID if format is invalid
+          // Invalid stored value or value less than starting, reset
+          console.warn(`Invalid or outdated numeric ID (${lastNumericIdStr}) in localStorage. Resetting to starting ID.`);
+          currentNumericId = STARTING_NUMERIC_ID;
         }
+      } else {
+        // No ID stored, start from the beginning
+        currentNumericId = STARTING_NUMERIC_ID;
       }
-      
-      // If no valid ID is stored, generate a new one
-      const newId = generatePseudoRandomId();
-      localStorage.setItem(SPEAKER_ID_STORAGE_KEY, newId);
-      return { id: newId };
+
+      localStorage.setItem(LAST_SPEAKER_NUMERIC_ID_KEY, currentNumericId.toString());
+      return { id: `id${currentNumericId}` };
 
     } catch (error) {
-      console.warn("LocalStorage access failed or an error occurred. Using a temporary ID.", error);
-      // Fallback for environments where localStorage is not available or errors occur (e.g., private browsing, full storage)
-      // This ID will not persist.
+      console.warn("LocalStorage access failed for sequential ID. Using a temporary ID with random suffix.", error);
+      // Fallback for environments where localStorage is not available or errors occur
+      // This ID will not persist reliably and might not be unique.
+      const randomSuffix = Math.floor(Math.random() * 1000);
       return {
-        id: generatePseudoRandomId() + '-temp-error',
+        id: `id${STARTING_NUMERIC_ID}_err${randomSuffix}`,
       };
     }
   } else {
-    // Fallback for non-browser environments (e.g., server-side rendering if used inappropriately)
-    // This ID will not persist.
-    console.warn("LocalStorage is not available (not in a browser environment). Using a temporary ID.");
+    // Fallback for non-browser environments
+    console.warn("LocalStorage is not available (not in a browser environment). Using a temporary ID with random suffix.");
+    const randomSuffix = Math.floor(Math.random() * 1000);
     return {
-      id: generatePseudoRandomId() + '-temp-nobrowser',
+      id: `id${STARTING_NUMERIC_ID}_tmp${randomSuffix}`,
     };
   }
 }

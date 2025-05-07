@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,16 +17,19 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { generateSpeakerId } from '@/services/speaker-id'; // Assuming this service exists
+import { generateSpeakerId, type SpeakerProfile } from '@/services/speaker-id'; 
 import { Loader2, UserPlus } from 'lucide-react';
 // import { useRouter } from 'next/navigation'; // If redirection is needed after registration
 
+// Basic regex for Sri Lankan WhatsApp numbers (starts with 07 or +947, followed by 8 digits)
+// This is a basic validation, a more robust one might be needed for production
+const whatsappRegex = /^(?:\+94|0)?7[0-9]{8}$/;
+
 const registrationSchema = z.object({
   fullName: z.string().min(3, { message: 'Full name must be at least 3 characters.' }).max(50),
+  email: z.string().email({ message: "Invalid email address." }),
+  whatsappNumber: z.string().regex(whatsappRegex, { message: 'Invalid WhatsApp number. Use format like +947XXXXXXXX or 07XXXXXXXX.' }),
   language: z.enum(['Sinhala', 'Tamil'], { required_error: 'Please select your primary language.' }),
-  // Add email and password for Firebase Auth later
-  // email: z.string().email({ message: "Invalid email address." }),
-  // password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
 
 type RegistrationFormValues = z.infer<typeof registrationSchema>;
@@ -48,6 +51,8 @@ export function RegistrationForm() {
     resolver: zodResolver(registrationSchema),
     defaultValues: {
       fullName: '',
+      email: '',
+      whatsappNumber: '',
       language: undefined, // Default to undefined for Select placeholder
     }
   });
@@ -57,17 +62,22 @@ export function RegistrationForm() {
     setGeneratedSpeakerId(null);
 
     try {
-      // Simulate user creation and speaker ID generation
-      // In a real app, this would involve Firebase Auth for user creation (email/password)
-      // and then associating the generated Speaker ID with that user in Firestore.
-
-      const speakerIdObj = await generateSpeakerId(); // This generates or gets from localStorage
+      const speakerIdObj = await generateSpeakerId(); 
       const newSpeakerId = speakerIdObj.id;
-      setGeneratedSpeakerId(newSpeakerId);
+      
+      const speakerProfile: SpeakerProfile = {
+        speakerId: newSpeakerId,
+        fullName: data.fullName,
+        email: data.email,
+        whatsappNumber: data.whatsappNumber,
+        language: data.language,
+      };
 
       // Simulate storing user data (e.g., in Firestore)
-      console.log('User Registered:', { ...data, speakerId: newSpeakerId });
-      // Example: await createUserInFirestore({ ...data, speakerId: newSpeakerId });
+      console.log('User Registered:', speakerProfile);
+      // Example: await createUserInFirestore(speakerProfile);
+
+      setGeneratedSpeakerId(newSpeakerId);
 
       toast({
         title: 'Registration Successful!',
@@ -108,6 +118,30 @@ export function RegistrationForm() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="email" className="text-foreground">Email Address</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="e.g., user@example.com"
+              {...register('email')}
+              className={errors.email ? 'border-destructive' : ''}
+            />
+            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="whatsappNumber" className="text-foreground">WhatsApp Number</Label>
+            <Input
+              id="whatsappNumber"
+              type="tel"
+              placeholder="e.g., +94771234567 or 0771234567"
+              {...register('whatsappNumber')}
+              className={errors.whatsappNumber ? 'border-destructive' : ''}
+            />
+            {errors.whatsappNumber && <p className="text-sm text-destructive">{errors.whatsappNumber.message}</p>}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="language" className="text-foreground">Primary Language</Label>
             <Controller
               name="language"
@@ -127,20 +161,6 @@ export function RegistrationForm() {
             {errors.language && <p className="text-sm text-destructive">{errors.language.message}</p>}
           </div>
           
-          {/* Email and Password fields for Firebase Auth - to be added later
-           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" {...register('email')} className={errors.email ? 'border-destructive' : ''} />
-            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" {...register('password')} className={errors.password ? 'border-destructive' : ''} />
-            {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
-          </div>
-          */}
-
         </CardContent>
         <CardFooter className="flex flex-col items-stretch space-y-4">
            <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting}>
@@ -156,6 +176,7 @@ export function RegistrationForm() {
               <p className="text-sm text-primary">
                 Registration successful! Your Speaker ID: <strong>{generatedSpeakerId}</strong>
               </p>
+              <p className="text-xs text-muted-foreground mt-1">Please note down your Speaker ID for future reference.</p>
             </div>
           )}
         </CardFooter>
