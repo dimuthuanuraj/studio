@@ -16,7 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  // AlertDialogTrigger, // No longer needed here for direct use in table
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -286,11 +286,10 @@ export function AdminDashboard() {
                         <Button variant="ghost" size="icon" onClick={() => handleDownloadAudio(sample)} title="Download Audio" className="hover:text-primary transition-colors">
                           <Download className="h-4 w-4" />
                         </Button>
-                        <AlertDialogTrigger asChild>
+                        {/* Button now directly sets selectedSample to open the dialog */}
                           <Button variant="ghost" size="icon" onClick={() => setSelectedSample(sample)} title="View & Update Status" className="hover:text-accent transition-colors">
                               <Eye className="h-4 w-4" />
                           </Button>
-                        </AlertDialogTrigger>
                       </TableCell>
                     </TableRow>
                   ))}
