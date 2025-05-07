@@ -1,0 +1,34 @@
+
+  The app is structured with Next.js App Router.
+  - `src/app/page.tsx`: Main page for users to record audio.
+  - `src/app/admin/page.tsx`: Admin dashboard to view submissions.
+  - `src/components/`: Contains reusable UI components.
+    - `AudioRecorder.tsx`: Handles audio recording logic and UI.
+    - `SpeakerIdDisplay.tsx`: Displays the user's unique Speaker ID.
+    - `AdminDashboard.tsx`: UI for the admin panel.
+    - `Header.tsx`: Common header for the application.
+    - `ui/`: ShadCN UI components.
+  - `src/hooks/`: Custom React hooks.
+    - `useSpeakerId.ts`: Hook to manage and retrieve speaker ID.
+    - `useToast.ts`: Hook for displaying notifications.
+  - `src/services/`: Business logic and API interactions.
+    - `speaker-id.ts`: Logic for generating speaker IDs.
+  - `src/app/globals.css`: Global styles and Tailwind CSS theme.
+  - `tailwind.config.ts`: Tailwind CSS configuration.
+
+  The color scheme has been applied to `globals.css` using HSL variables for ShadCN theming.
+  Primary: Green (#4CAF50)
+  Secondary: Light gray (#F0F0F0)
+  Accent: Blue (#2196F3)
+
+  Functionality:
+  - Users on the main page can see their unique Speaker ID (generated and stored in localStorage).
+  - They can record audio (up to 30 seconds). The microphone permission is requested.
+  - After recording, they can preview, download, or discard the audio.
+  - They can submit the audio, which currently simulates a submission with a toast message.
+  - The admin panel (`/admin`) displays a mock list of audio submissions with options to play, download, or view details (these are placeholders).
+  - The UI is responsive and uses ShadCN components for a modern look and feel.
+  - Icons from `lucide-react` are used for clarity.
+  - The layout is simple and aims for intuitive navigation.
+  - Typography uses Geist Sans, a clean and modern font.
+  
