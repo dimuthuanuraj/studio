@@ -26,8 +26,18 @@ export default function HomePage() {
 
   if (!authContext) {
     return (
-      <div>
-        Error: AuthContext not found. Please ensure AuthProvider wraps your application.
+      <div className="flex flex-col min-h-screen bg-secondary items-center justify-center">
+        <Header />
+        <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-center">
+         <Card className="w-full max-w-md shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl text-destructive">Error</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>AuthContext not found. Please ensure AuthProvider wraps your application.</p>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     );
   }
@@ -74,25 +84,26 @@ export default function HomePage() {
                 <Button 
                   key={lang} 
                   onClick={() => handleLanguageSelect(lang)} 
-                  variant="outline"
-                  className="justify-start text-lg py-6"
+                  variant={loggedInUser.language === lang ? "default" : "outline"}
+                  className="justify-start text-lg py-6 group"
                 >
-                  <Languages className="mr-3 h-5 w-5" /> {lang}
+                  <Languages className="mr-3 h-5 w-5 text-primary group-hover:text-primary-foreground" /> {lang}
+                  {loggedInUser.language === lang && <span className="ml-auto text-xs text-primary-foreground/80">(Native)</span>}
                 </Button>
               ))}
-               <Button variant="ghost" onClick={logoutUser} size="sm" className="mt-4 self-start text-muted-foreground">
+               <Button variant="ghost" onClick={logoutUser} size="sm" className="mt-4 self-start text-muted-foreground hover:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" /> Logout
                 </Button>
             </CardContent>
           </Card>
         ) : (
           <>
-            <div className="text-center w-full">
+            <div className="text-center w-full max-w-lg">
               <div className="flex justify-between items-center mb-2">
                  <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">
                     Voice Recording
                  </h1>
-                <Button variant="outline" onClick={logoutUser} size="sm">
+                <Button variant="outline" onClick={logoutUser} size="sm" className="hover:border-destructive hover:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" /> Logout
                 </Button>
               </div>
@@ -103,7 +114,7 @@ export default function HomePage() {
                  <p className="text-md text-muted-foreground">
                     Recording in: <span className="font-semibold text-accent">{selectedRecordingLanguage}</span>
                  </p>
-                 <Button variant="link" onClick={handleChangeLanguage} size="sm" className="text-accent p-0 h-auto">
+                 <Button variant="link" onClick={handleChangeLanguage} size="sm" className="text-accent p-0 h-auto hover:text-accent/80">
                     (Change Language)
                   </Button>
               </div>
@@ -119,3 +130,4 @@ export default function HomePage() {
     </div>
   );
 }
+
