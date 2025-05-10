@@ -1,6 +1,5 @@
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { UserCog, UserPlus } from 'lucide-react';
 
@@ -10,24 +9,7 @@ export function Header() {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-2 text-2xl font-bold text-primary">
-             {/* Placeholder for University of Jaffna Logo */}
-            <Image
-              src="https://picsum.photos/seed/uojlogo/40/40" // Placeholder image
-              alt="University of Jaffna Logo"
-              width={40}
-              height={40}
-              className="rounded-full"
-              data-ai-hint="university logo"
-            />
-            {/* Placeholder for MLSP Lab Logo */}
-             <Image
-              src="https://picsum.photos/seed/mlsplogo/40/40" // Placeholder image
-              alt="MLSP Lab Logo"
-              width={40}
-              height={40}
-              className="rounded-full"
-              data-ai-hint="research lab"
-            />
+            {/* Logos removed as per user request */}
             <span>VoiceID Lanka</span>
           </Link>
         </div>
@@ -49,4 +31,3 @@ export function Header() {
     </header>
   );
 }
-
