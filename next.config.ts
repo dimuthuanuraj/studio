@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
         hostname: 'www.jfn.ac.lk',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'eng.jfn.ac.lk',
+        port: '',
+        pathname: '/**',
       }
     ],
   },

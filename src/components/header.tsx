@@ -19,9 +19,9 @@ export function Header() {
               data-ai-hint="university emblem" 
             />
             <Image
-              src="https://picsum.photos/seed/mlsp-logo/40/40" // Placeholder for MLSP Lab logo
+              src="https://eng.jfn.ac.lk/mlsp/wp-content/uploads/2021/05/banner.png" // Placeholder for MLSP Lab logo
               alt="MLSP Lab Logo"
-              width={40}
+              width={80}
               height={40}
               className="rounded-full"
               data-ai-hint="lab emblem"
