@@ -11,12 +11,20 @@ export function Header() {
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-3 text-2xl font-bold text-primary">
             <Image 
-              src="https://www.jfn.ac.lk/wp-content/uploads/2022/02/Logo-Color-300x300.png" // Placeholder, replace with /uoj_logo.png
+              src="https://www.jfn.ac.lk/wp-content/uploads/2022/02/Logo-Color-300x300.png"
               alt="University of Jaffna Logo" 
               width={40} 
               height={40} 
               className="rounded-full"
               data-ai-hint="university emblem" 
+            />
+            <Image
+              src="https://picsum.photos/seed/mlsp-logo/40/40" // Placeholder for MLSP Lab logo
+              alt="MLSP Lab Logo"
+              width={40}
+              height={40}
+              className="rounded-full"
+              data-ai-hint="lab emblem"
             />
             <span>VoiceID Lanka</span>
           </Link>
@@ -39,4 +47,3 @@ export function Header() {
     </header>
   );
 }
-
