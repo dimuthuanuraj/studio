@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -16,6 +15,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import JSZip from 'jszip';
@@ -35,19 +35,19 @@ interface AudioSample {
   timestamp: string;
   duration: string;
   status: 'pending' | 'verified' | 'rejected';
-  audioUrl?: string;
-  fileName?: string;
+  audioUrl?: string; // Optional: URL to the audio file for playback
+  fileName?: string; // Optional: Filename for download
   phraseIndex?: number;
   phraseText?: string;
 }
 
 const initialMockAudioSamples: AudioSample[] = [
-  { id: 'sample001', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'id90000_sinhala_phrase1_20240101T100000.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1, phraseText: "Mock phrase 1" },
-  { id: 'sample002', speakerId: 'id90001', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'id90001_tamil_phrase2_20240101T110000.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2, phraseText: "Mock phrase 2" },
-  { id: 'sample003', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), duration: '0:10', status: 'rejected', fileName: 'id90000_english_phrase3_20240101T120000.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 3, phraseText: "Mock phrase 3" },
-  { id: 'sample004', speakerId: 'id90002', speakerName: 'Saman Kumara', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), duration: '0:28', status: 'pending', fileName: 'id90002_sinhala_phrase1_20240101T130000.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 1, phraseText: "Mock phrase 4" },
-  { id: 'sample005', speakerId: 'id90001', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), duration: '0:19', status: 'verified', fileName: 'id90001_english_phrase4_20240101T140000.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 4, phraseText: "Mock phrase 5" },
-  { id: 'sample006', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 6).toISOString(), duration: '0:12', status: 'pending', fileName: 'id90000_sinhala_phrase2_20240101T150000.webm', audioUrl: 'https://picsum.photos/10/10', phraseIndex: 2, phraseText: "Mock phrase 6" },
+  { id: 'sample001', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 1).toISOString(), duration: '0:15', status: 'pending', fileName: 'id90000_sinhala_phrase1_20240101T100000.webm', audioUrl: undefined, phraseIndex: 1, phraseText: "Mock phrase 1" },
+  { id: 'sample002', speakerId: 'id90001', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'Tamil', timestamp: new Date(Date.now() - 3600000 * 2).toISOString(), duration: '0:22', status: 'verified', fileName: 'id90001_tamil_phrase2_20240101T110000.webm', audioUrl: undefined, phraseIndex: 2, phraseText: "Mock phrase 2" },
+  { id: 'sample003', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), duration: '0:10', status: 'rejected', fileName: 'id90000_english_phrase3_20240101T120000.webm', audioUrl: undefined, phraseIndex: 3, phraseText: "Mock phrase 3" },
+  { id: 'sample004', speakerId: 'id90002', speakerName: 'Saman Kumara', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 4).toISOString(), duration: '0:28', status: 'pending', fileName: 'id90002_sinhala_phrase1_20240101T130000.webm', audioUrl: undefined, phraseIndex: 1, phraseText: "Mock phrase 4" },
+  { id: 'sample005', speakerId: 'id90001', speakerName: 'Nimali Silva', nativeLanguage: 'Tamil', recordedLanguage: 'English', timestamp: new Date(Date.now() - 3600000 * 5).toISOString(), duration: '0:19', status: 'verified', fileName: 'id90001_english_phrase4_20240101T140000.webm', audioUrl: undefined, phraseIndex: 4, phraseText: "Mock phrase 5" },
+  { id: 'sample006', speakerId: 'id90000', speakerName: 'Kamal Perera', nativeLanguage: 'Sinhala', recordedLanguage: 'Sinhala', timestamp: new Date(Date.now() - 3600000 * 6).toISOString(), duration: '0:12', status: 'pending', fileName: 'id90000_sinhala_phrase2_20240101T150000.webm', audioUrl: undefined, phraseIndex: 2, phraseText: "Mock phrase 6" },
 ];
 
 
@@ -87,7 +87,7 @@ export function AdminDashboard() {
     return () => {
       if (currentAudio) {
         currentAudio.pause();
-        currentAudio.src = '';
+        currentAudio.src = ''; // Clear src
         setCurrentAudio(null);
       }
     };
@@ -95,9 +95,13 @@ export function AdminDashboard() {
   }, []);
 
   const handlePlayAudio = (sample: AudioSample) => {
-    if (currentAudio && currentAudio.src === sample.audioUrl && !currentAudio.ended) {
+    // Check if clicking the same sample that's already playing/paused
+    if (currentAudio && currentAudio.dataset.sampleId === sample.id && !currentAudio.ended) {
         if(currentAudio.paused) {
-            currentAudio.play().catch(e => console.error("Error playing audio:", e));
+            currentAudio.play().catch(e => {
+                console.error("Error resuming audio:", e);
+                toast({ title: "Playback Error", description: `Could not play ${sample.fileName}.`, variant: "destructive" });
+            });
             toast({ title: "Resuming Audio", description: `Playing ${sample.fileName}`});
         } else {
             currentAudio.pause();
@@ -106,6 +110,7 @@ export function AdminDashboard() {
         return;
     }
 
+    // If there's an existing audio, pause and clear it
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.src = '';
@@ -113,36 +118,43 @@ export function AdminDashboard() {
 
     if (sample.audioUrl) {
       const audio = new Audio(sample.audioUrl);
+      audio.dataset.sampleId = sample.id; // Store sample id for tracking current audio
       audio.play().catch(e => {
-        console.error("Error playing audio:", e);
-        toast({ title: "Playback Error", description: "Could not play audio.", variant: "destructive" });
+        console.error("Error playing audio:", e); // This is where "The element has no supported sources" might log if URL is bad.
+        toast({ title: "Playback Error", description: `Could not play ${sample.fileName}. Check console for details.`, variant: "destructive" });
       });
       setCurrentAudio(audio);
       toast({ title: "Playing Audio", description: `Playing ${sample.fileName} for Speaker ID: ${sample.speakerId}` });
     } else {
-      toast({ title: "Playback Error", description: "No audio URL available for this sample.", variant: "destructive" });
+      toast({ title: "Playback Unavailable", description: `No audio URL available for sample ${sample.fileName}.`, variant: "destructive" });
     }
   };
   
   const handleDownloadAudio = (sample: AudioSample) => {
-    if (sample.audioUrl && sample.fileName) {
-        const isMockUrl = sample.audioUrl.includes('picsum.photos');
-        if (isMockUrl) {
-            const dummyContent = `This is a mock audio file for ${sample.fileName}. URL: ${sample.audioUrl}`;
-            const blob = new Blob([dummyContent], { type: 'text/plain' });
-            saveAs(blob, sample.fileName.replace(/\.webm$/i, '.txt'));
-            toast({ title: "Downloading Mock Audio", description: `Downloading ${sample.fileName} (as .txt)...` });
-        } else {
+    if (sample.fileName) {
+        // For mock samples (audioUrl might be undefined or a placeholder)
+        // we create a dummy text file.
+        // For real samples, you would use sample.audioUrl to fetch and download.
+        const isActualAudioAvailable = !!sample.audioUrl && !sample.audioUrl.includes('picsum.photos'); // Basic check
+
+        if (isActualAudioAvailable) {
+            // Assumes sample.audioUrl is a direct link to an audio file
             const link = document.createElement('a');
-            link.href = sample.audioUrl;
+            link.href = sample.audioUrl!;
             link.download = sample.fileName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             toast({ title: "Downloading Audio", description: `Downloading ${sample.fileName}...` });
+        } else {
+            // Create a dummy text file for mock/unavailable audio
+            const dummyContent = `This is a mock audio file for ${sample.fileName}.\nSpeaker ID: ${sample.speakerId}\nRecorded Language: ${sample.recordedLanguage}\nPhrase Index: ${sample.phraseIndex}\nTimestamp: ${sample.timestamp}\nIntended Audio URL (if available): ${sample.audioUrl || 'Not specified'}`;
+            const blob = new Blob([dummyContent], { type: 'text/plain' });
+            saveAs(blob, sample.fileName.replace(/\.(webm|wav|mp3)$/i, '.txt')); // Save as .txt
+            toast({ title: "Downloading Mock Info", description: `Downloading details for ${sample.fileName} (as .txt)...` });
         }
     } else {
-        toast({ title: "Download Error", description: "No audio URL or filename available.", variant: "destructive" });
+        toast({ title: "Download Error", description: "No filename available for this sample.", variant: "destructive" });
     }
   };
 
@@ -158,7 +170,6 @@ export function AdminDashboard() {
 
     const zip = new JSZip();
     
-    // Group samples by speaker ID for folder structure
     const samplesBySpeaker: { [key: string]: AudioSample[] } = {};
     for (const sample of samples) {
         if (!samplesBySpeaker[sample.speakerId]) {
@@ -177,8 +188,11 @@ export function AdminDashboard() {
         }
         for (const sample of samplesBySpeaker[speakerId]) {
           if (sample.fileName) {
-            const dummyContent = `Mock audio content for ${sample.fileName}. Recorded Language: ${sample.recordedLanguage}, Phrase Index: ${sample.phraseIndex}, Timestamp: ${sample.timestamp}. Actual URL: ${sample.audioUrl}`;
-            speakerFolder.file(sample.fileName.replace(/\.webm$/i, '.txt'), dummyContent);
+            // As these are mock samples, create text files with info
+            const fileContent = `Mock audio content for ${sample.fileName}.\nSpeaker ID: ${sample.speakerId}\nSpeaker Name: ${sample.speakerName || 'N/A'}\nNative Language: ${sample.nativeLanguage || 'N/A'}\nRecorded Language: ${sample.recordedLanguage}\nPhrase Index: ${sample.phraseIndex ?? 'N/A'}\nPhrase Text: ${sample.phraseText || 'N/A'}\nTimestamp: ${sample.timestamp}\nDuration: ${sample.duration}\nStatus: ${sample.status}\n(Intended Audio URL: ${sample.audioUrl || 'Not specified'})`;
+            // Save as .txt if it's a mock, or original extension if real audio was available
+            const actualFileName = sample.fileName.replace(/\.(webm|wav|mp3)$/i, '.txt'); 
+            speakerFolder.file(actualFileName, fileContent);
           }
         }
       }
@@ -251,16 +265,17 @@ export function AdminDashboard() {
   const pendingReview = audioSamples.filter(s => s.status === 'pending').length;
   const recordedLanguagesCount = new Set(audioSamples.map(s => s.recordedLanguage)).size;
 
-  const openModal = (modalType: ActiveModal, data?: AudioSample) => {
-    if (modalType === 'sampleReview' && data) {
-      setSelectedSample(data);
+  const openModal = (modalType: ActiveModal, data?: AudioSample | SpeakerProfile[] | AudioSample[]) => {
+    if (modalType === 'sampleReview' && data && !Array.isArray(data)) {
+      setSelectedSample(data as AudioSample);
     }
+    // For other modal types, data might be different or not needed for `selectedSample`
     setActiveModal(modalType);
   };
 
   const closeModal = () => {
     setActiveModal('none');
-    setSelectedSample(null); // Clear selected sample when any modal closes
+    setSelectedSample(null); 
   };
 
   return (
@@ -268,10 +283,11 @@ export function AdminDashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card 
             className="shadow-md hover:shadow-lg transition-shadow duration-200 ease-in-out cursor-pointer"
-            onClick={() => openModal('allSubmissions')}
+            onClick={() => openModal('allSubmissions', audioSamples)}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && openModal('allSubmissions')}
+            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && openModal('allSubmissions', audioSamples)}
+            aria-label={`View all ${totalSubmissions} submissions`}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Submissions</CardTitle>
@@ -286,10 +302,11 @@ export function AdminDashboard() {
         </Card>
         <Card 
             className="shadow-md hover:shadow-lg transition-shadow duration-200 ease-in-out cursor-pointer"
-            onClick={() => openModal('uniqueSpeakers')}
+            onClick={() => openModal('uniqueSpeakers', registeredSpeakers)}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && openModal('uniqueSpeakers')}
+            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && openModal('uniqueSpeakers', registeredSpeakers)}
+            aria-label={`View all ${uniqueSpeakersCount} unique speakers`}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Unique Speakers</CardTitle>
@@ -393,6 +410,7 @@ export function AdminDashboard() {
                         <Button variant="ghost" size="icon" onClick={() => handleDownloadAudio(sample)} title="Download Audio" className="hover:text-primary transition-colors" disabled={isZipping}>
                           <Download className="h-4 w-4" />
                         </Button>
+                         {/* Button now directly sets selectedSample and modal state will be handled by AlertDialog's open prop */}
                         <Button variant="ghost" size="icon" onClick={() => openModal('sampleReview', sample)} title="View & Update Status" className="hover:text-accent transition-colors" disabled={isZipping}>
                             <Eye className="h-4 w-4" />
                         </Button>
@@ -426,6 +444,7 @@ export function AdminDashboard() {
                       {selectedSample.nativeLanguage && <p><strong>Native Language:</strong> <Badge variant="outline" className="ml-1">{selectedSample.nativeLanguage}</Badge></p>}
                       <p><strong>Recorded Language:</strong> <Badge variant={selectedSample.recordedLanguage === selectedSample.nativeLanguage ? "outline" : "secondary"} className="ml-1">{selectedSample.recordedLanguage}</Badge></p>
                       {selectedSample.phraseIndex != null && <p><strong>Phrase No:</strong> <span className="text-foreground">{selectedSample.phraseIndex}</span></p>}
+                      {selectedSample.phraseText && <p><strong>Phrase Text:</strong> <em className="text-foreground">"{selectedSample.phraseText}"</em></p>}
                       <p><strong>Submitted:</strong> <span className="text-foreground">{new Date(selectedSample.timestamp).toLocaleString()}</span></p>
                       <p><strong>Duration:</strong> <span className="text-foreground">{selectedSample.duration}</span></p>
                       <p><strong>Current Status:</strong> <Badge variant={getStatusBadgeVariant(selectedSample.status)} className="capitalize ml-1 text-xs px-2 py-1 flex items-center w-max">{getStatusIcon(selectedSample.status)}{selectedSample.status}</Badge></p>
