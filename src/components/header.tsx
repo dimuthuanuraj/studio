@@ -21,10 +21,9 @@ export function Header() {
             <Image
               src="https://eng.jfn.ac.lk/mlsp/wp-content/uploads/2021/05/banner.png"
               alt="MLSP Lab Logo"
-              width={80}
-              height={15} // Adjusted height to maintain aspect ratio (original 960x180 -> 80x15)
+              width={120} // Increased width
+              height={23} // Increased height, maintaining aspect ratio (original 960x180 -> 120x22.5, rounded to 23)
               data-ai-hint="lab emblem"
-              // Removed rounded-full as banner images are typically rectangular
             />
             <span>VoiceID Lanka</span>
           </Link>
