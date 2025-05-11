@@ -9,6 +9,7 @@ import { Mic, StopCircle, Send, Play, Download, AlertTriangle, Trash2, Loader2, 
 import { Progress } from '@/components/ui/progress';
 import { generateReadingPhrase } from '@/ai/flows/generate-reading-phrase-flow';
 import type { SpeakerProfile } from '@/contexts/auth-context'; 
+import { uploadAudioToDriveAction } from '@/app/actions/audioDriveActions';
 
 type RecordingStatus = 'idle' | 'recording' | 'stopped' | 'submitting' | 'error' | 'generating_phrase' | 'all_recorded';
 type RecordingLanguage = 'Sinhala' | 'Tamil' | 'English';
@@ -21,12 +22,24 @@ interface AudioRecorderProps {
   sessionLanguage: RecordingLanguage; 
 }
 
+// Store local preview URLs with Drive file IDs
+interface RecordedSampleInfo {
+  localAudioUrl: string; // Blob URL for local preview
+  driveFileId?: string;   // ID from Drive after successful upload
+  driveFileName?: string; // Filename in Drive
+  phraseIndex: number;
+  speakerId: string;
+  phraseText: string;
+  language: RecordingLanguage;
+}
+
+
 export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderProps) {
   const { toast } = useToast();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>('idle');
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [currentPreviewAudioUrl, setCurrentPreviewAudioUrl] = useState<string | null>(null); // For the immediate recording
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -34,7 +47,7 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
   const [currentPhrase, setCurrentPhrase] = useState<string | null>(null);
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
 
-  const [recordedSamples, setRecordedSamples] = useState<Array<{ phraseIndex: number; audioUrl: string; speakerId: string; fileName: string, phraseText: string, language: RecordingLanguage }>>([]);
+  const [recordedSamplesInfo, setRecordedSamplesInfo] = useState<RecordedSampleInfo[]>([]);
 
   const speakerId = userProfile?.speakerId;
 
@@ -64,20 +77,19 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
     }
   };
 
-  // Effect to fetch a new phrase when sessionLanguage changes or when component mounts/resets for a new language
   useEffect(() => {
-    setRecordedSamples([]); // Clear previous language samples
+    setRecordedSamplesInfo([]); 
     setCurrentPhraseIndex(0);
-    setAudioUrl(null); // Clear any previewed audio
-    setRecordingStatus('idle'); // Reset status
+    if (currentPreviewAudioUrl) URL.revokeObjectURL(currentPreviewAudioUrl);
+    setCurrentPreviewAudioUrl(null); 
+    setRecordingStatus('idle'); 
     if (userProfile && sessionLanguage) {
       fetchNewPhrase();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionLanguage, userProfile]); // Re-run when sessionLanguage or userProfile changes
+  }, [sessionLanguage, userProfile]); 
 
 
-  // Effect for phrase fetching logic based on currentPhraseIndex and status
   useEffect(() => {
     if (userProfile && sessionLanguage && currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD && !currentPhrase && recordingStatus === 'idle') {
       fetchNewPhrase();
@@ -94,25 +106,24 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
-      if(audioUrl) {
-        URL.revokeObjectURL(audioUrl);
+      if(currentPreviewAudioUrl) {
+        URL.revokeObjectURL(currentPreviewAudioUrl);
       }
-      // Clean up previously created object URLs for recorded samples
-      recordedSamples.forEach(sample => {
-        if(sample.audioUrl.startsWith('blob:')){
-            URL.revokeObjectURL(sample.audioUrl)
+      recordedSamplesInfo.forEach(sample => {
+        if(sample.localAudioUrl.startsWith('blob:')){
+            URL.revokeObjectURL(sample.localAudioUrl)
         }
       });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audioUrl]); 
+  }, [currentPreviewAudioUrl]); 
 
 
   const startRecording = async () => {
     setErrorMessage(null);
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-      setAudioUrl(null);
+    if (currentPreviewAudioUrl) {
+      URL.revokeObjectURL(currentPreviewAudioUrl);
+      setCurrentPreviewAudioUrl(null);
     }
     audioChunksRef.current = [];
     setRecordingTime(0);
@@ -125,14 +136,14 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' }); // Common compatible format
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' }); 
       mediaRecorderRef.current.ondataavailable = (event) => {
         audioChunksRef.current.push(event.data);
       };
       mediaRecorderRef.current.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(audioBlob);
-        setAudioUrl(url);
+        setCurrentPreviewAudioUrl(url);
         setRecordingStatus('stopped');
         stream.getTracks().forEach(track => track.stop());
         if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
@@ -180,63 +191,89 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
     }
   };
 
-  const saveAndNextPhrase = () => {
-    if (audioUrl && speakerId && currentPhrase && sessionLanguage) {
-      const fileName = `${speakerId}_${sessionLanguage.toLowerCase()}_phrase${currentPhraseIndex + 1}.webm`;
-      const newSample = { phraseIndex: currentPhraseIndex, audioUrl, speakerId, fileName, phraseText: currentPhrase, language: sessionLanguage };
-      setRecordedSamples(prev => [...prev, newSample]);
-      
-      // Important: Do not revoke audioUrl here yet if you want to keep it for a "list" of previews, 
-      // but for this flow, we clear it for the next recording.
-      // URL.revokeObjectURL(audioUrl); // This would make the saved sample's URL invalid if it's the same one.
-      // Instead, create a new URL for each recording. The current `audioUrl` is for the *current* preview.
-      
-      setAudioUrl(null); 
-      setCurrentPhrase(null); 
-      
-      if (currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD - 1) {
-        setCurrentPhraseIndex(prev => prev + 1);
-        setRecordingStatus('idle'); // Ready for next phrase (will trigger fetchNewPhrase via useEffect)
-      } else {
-        toast({ title: "All Phrases Recorded!", description: `You have recorded all ${NUMBER_OF_PHRASES_TO_RECORD} phrases in ${sessionLanguage}. You can now submit.`, variant: "default" });
-        setRecordingStatus('all_recorded'); 
-        setCurrentPhraseIndex(prev => prev + 1); 
-      }
+  const saveAndNextPhrase = async () => {
+    if (!currentPreviewAudioUrl || !speakerId || !currentPhrase || !sessionLanguage || !userProfile) {
+        toast({ title: "Error", description: "Missing required information to save.", variant: "destructive"});
+        return;
+    }
+    setRecordingStatus('submitting'); // Indicate "saving to drive"
+    
+    const audioBlob = await fetch(currentPreviewAudioUrl).then(r => r.blob());
+    const formData = new FormData();
+    formData.append('audioBlob', audioBlob, `phrase_${currentPhraseIndex + 1}.webm`);
+
+    try {
+        const result = await uploadAudioToDriveAction(formData, userProfile, sessionLanguage, currentPhraseIndex, currentPhrase);
+
+        if (result.success && result.fileId && result.fileName) {
+            const newSampleInfo: RecordedSampleInfo = {
+                localAudioUrl: currentPreviewAudioUrl, // Keep local URL for now, might be revoked later
+                driveFileId: result.fileId,
+                driveFileName: result.fileName,
+                phraseIndex: currentPhraseIndex,
+                speakerId,
+                phraseText: currentPhrase,
+                language: sessionLanguage,
+            };
+            setRecordedSamplesInfo(prev => [...prev, newSampleInfo]);
+            setCurrentPreviewAudioUrl(null); // Clear current preview as it's "saved"
+            setCurrentPhrase(null);
+
+            toast({ title: `Phrase ${currentPhraseIndex + 1} Saved`, description: `"${result.fileName}" uploaded to Drive.`, variant: "default" });
+
+            if (currentPhraseIndex < NUMBER_OF_PHRASES_TO_RECORD - 1) {
+                setCurrentPhraseIndex(prev => prev + 1);
+                setRecordingStatus('idle'); // Fetch next phrase
+            } else {
+                toast({ title: "All Phrases Recorded!", description: `You have recorded all ${NUMBER_OF_PHRASES_TO_RECORD} phrases in ${sessionLanguage}.`, variant: "default" });
+                setRecordingStatus('all_recorded');
+                setCurrentPhraseIndex(prev => prev + 1);
+            }
+        } else {
+            toast({ title: "Upload Failed", description: result.error || "Could not save to Drive.", variant: "destructive"});
+            setRecordingStatus('stopped'); // Revert to stopped so user can try saving again
+        }
+    } catch (error) {
+        console.error("Error saving to Drive:", error);
+        toast({ title: "Upload Exception", description: "An error occurred while saving.", variant: "destructive"});
+        setRecordingStatus('stopped');
     }
   };
 
   const resetCurrentRecording = () => {
-    if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
+    if (currentPreviewAudioUrl) {
+        URL.revokeObjectURL(currentPreviewAudioUrl);
     }
-    setAudioUrl(null);
+    setCurrentPreviewAudioUrl(null);
     setRecordingStatus('idle');
     setErrorMessage(null);
     audioChunksRef.current = [];
     setRecordingTime(0);
     if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-    // Do not fetch new phrase here, let user decide to re-record or if it's an error recovery.
   };
 
   const discardAllSamplesAndRestartSession = () => {
-    recordedSamples.forEach(sample => {
-        if(sample.audioUrl.startsWith('blob:')){
-             URL.revokeObjectURL(sample.audioUrl);
+    recordedSamplesInfo.forEach(sample => {
+        if(sample.localAudioUrl.startsWith('blob:')){
+             URL.revokeObjectURL(sample.localAudioUrl);
         }
+        // Note: We are not deleting from Drive here, only local session state.
+        // A real "discard" might involve deleting from Drive as well.
     });
-    setRecordedSamples([]);
+    setRecordedSamplesInfo([]);
     setCurrentPhraseIndex(0);
     setCurrentPhrase(null); 
-    resetCurrentRecording(); // Also resets current recording state
-    toast({ title: `All samples for ${sessionLanguage} discarded.`, description: "Starting phrase collection again.", variant: "default" });
-    fetchNewPhrase(); // Fetch the first phrase for the current sessionLanguage
+    resetCurrentRecording(); 
+    toast({ title: `All local progress for ${sessionLanguage} discarded.`, description: "Starting phrase collection again.", variant: "default" });
+    fetchNewPhrase(); 
   }
 
+  // This function is now more of a conceptual "session complete" since individual uploads happen
   const handleSubmitAll = async () => {
-    if (recordedSamples.length < NUMBER_OF_PHRASES_TO_RECORD) {
+    if (recordedSamplesInfo.length < NUMBER_OF_PHRASES_TO_RECORD) {
       toast({
-        title: 'Submission Error',
-        description: `Please record all ${NUMBER_OF_PHRASES_TO_RECORD} phrases in ${sessionLanguage} before submitting.`,
+        title: 'Session Not Complete',
+        description: `Please record and save all ${NUMBER_OF_PHRASES_TO_RECORD} phrases in ${sessionLanguage}.`,
         variant: 'destructive',
       });
       return;
@@ -246,49 +283,35 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
         return;
     }
 
-    setRecordingStatus('submitting');
+    // All files are already "submitted" to Drive one by one.
+    // This function can now just confirm completion and reset.
+    setRecordingStatus('submitting'); // Show a final "submitting" state for UX
+    
     toast({
-      title: `Submitting Samples for ${sessionLanguage}...`,
-      description: `Submitting ${recordedSamples.length} samples for Speaker ID: ${speakerId}`,
+      title: `Session for ${sessionLanguage} Complete!`,
+      description: `All ${recordedSamplesInfo.length} audio samples in ${sessionLanguage} have been uploaded to Google Drive.`,
+      variant: 'default',
+    });
+    
+    // Clean up local blob URLs (as they are now on Drive)
+    recordedSamplesInfo.forEach(sample => {
+        if (sample.localAudioUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(sample.localAudioUrl);
+        }
     });
 
-    // Simulate submission
-    for (const sample of recordedSamples) {
-      await new Promise(resolve => setTimeout(resolve, 500)); 
-      console.log('Submitted audio:', sample.fileName, 'for Speaker ID:', sample.speakerId, 'Phrase:', sample.phraseText, 'Language:', sample.language);
-      // In a real app:
-      // 1. Fetch the blob from sample.audioUrl
-      // const audioBlob = await fetch(sample.audioUrl).then(res => res.blob());
-      // 2. Upload to Firebase Storage:
-      //    const storageRef = ref(storage, `audio_samples/${sample.speakerId}/${sample.fileName}`);
-      //    await uploadBytes(storageRef, audioBlob);
-      //    const downloadURL = await getDownloadURL(storageRef);
-      // 3. Save metadata (speakerId, phraseIndex, language, phraseText, downloadURL, timestamp) to Firestore
-      //    await addDoc(collection(db, "audioSamples"), { ...sample, audioUrl: downloadURL, timestamp: serverTimestamp() });
-      
-      // For now, just clean up the local blob URL after "submission"
-      if (sample.audioUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(sample.audioUrl);
-      }
-    }
-    
-    toast({
-      title: `All Samples for ${sessionLanguage} Submitted!`,
-      description: `Your audio samples in ${sessionLanguage} have been successfully submitted.`,
-      variant: 'default', // Success variant
-    });
-    
-    setRecordedSamples([]);
+    setRecordedSamplesInfo([]); // Clear the local list of recorded samples
     setCurrentPhraseIndex(0);
     setCurrentPhrase(null); 
     resetCurrentRecording(); 
-    setRecordingStatus('idle'); // Reset for a new session or language change
-    // Do not automatically fetch new phrase; user might want to change language or logout.
+    setRecordingStatus('idle'); 
+    // Optionally fetch a new phrase if user stays on page, or let them navigate
+    // fetchNewPhrase(); 
   };
 
   const recordingProgress = (recordingTime / MAX_RECORDING_TIME_MS) * 100;
   const isActionDisabled = !userProfile || recordingStatus === 'recording' || recordingStatus === 'submitting' || recordingStatus === 'generating_phrase' || !sessionLanguage;
-  const allPhrasesRecordedForSession = currentPhraseIndex >= NUMBER_OF_PHRASES_TO_RECORD && recordedSamples.length === NUMBER_OF_PHRASES_TO_RECORD;
+  const allPhrasesRecordedForSession = currentPhraseIndex >= NUMBER_OF_PHRASES_TO_RECORD && recordedSamplesInfo.length === NUMBER_OF_PHRASES_TO_RECORD;
 
 
   if (!userProfile) {
@@ -348,8 +371,8 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
             {recordingStatus === 'all_recorded' && (
                 <div className="text-center text-primary space-y-2">
                     <CheckCircle className="h-10 w-10 mx-auto text-accent" />
-                    <p className="text-lg font-semibold">All {sessionLanguage} phrases recorded!</p>
-                    <p className="text-sm text-muted-foreground">You can now submit your recordings.</p>
+                    <p className="text-lg font-semibold">All {sessionLanguage} phrases recorded and saved!</p>
+                    <p className="text-sm text-muted-foreground">You can now finalize the session.</p>
                 </div>
             )}
         </div>
@@ -371,21 +394,22 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
           </div>
         )}
 
-        {audioUrl && (recordingStatus === 'stopped' || recordingStatus === 'submitting') && currentPhrase && (
+        {currentPreviewAudioUrl && (recordingStatus === 'stopped' || recordingStatus === 'submitting') && currentPhrase && (
           <div className="space-y-3 p-3 bg-secondary/50 rounded-md border">
             <p className="font-medium text-center text-primary">Preview for {sessionLanguage} phrase {currentPhraseIndex + 1}:</p>
-            <audio controls src={audioUrl} className="w-full rounded-md shadow-sm" aria-label={`Audio preview for phrase ${currentPhraseIndex + 1}`} />
+            <audio controls src={currentPreviewAudioUrl} className="w-full rounded-md shadow-sm" aria-label={`Audio preview for phrase ${currentPhraseIndex + 1}`} />
             <div className="flex justify-center space-x-2 pt-2">
               <Button variant="outline" size="sm" onClick={() => {
+                if (!currentPreviewAudioUrl) return;
                 const a = document.createElement('a');
-                a.href = audioUrl;
-                a.download = `${speakerId || 'unknown-speaker'}_${sessionLanguage.toLowerCase()}_phrase${currentPhraseIndex + 1}.webm`;
+                a.href = currentPreviewAudioUrl;
+                a.download = `${speakerId || 'unknown-speaker'}_${sessionLanguage.toLowerCase()}_phrase${currentPhraseIndex + 1}_preview.webm`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                  toast({ title: "Audio Downloaded", description: "The preview audio has been downloaded."});
               }} disabled={recordingStatus === 'submitting'}>
-                <Download className="mr-2 h-4 w-4" /> Download
+                <Download className="mr-2 h-4 w-4" /> Download Preview
               </Button>
                <Button variant="destructive" size="sm" onClick={resetCurrentRecording} disabled={recordingStatus === 'submitting'}>
                 <Trash2 className="mr-2 h-4 w-4" /> Re-record This Phrase
@@ -405,7 +429,7 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
           {(recordingStatus === 'idle' || recordingStatus === 'error') && !allPhrasesRecordedForSession && currentPhrase && (
             <Button 
               onClick={startRecording} 
-              disabled={!speakerId || isActionDisabled || !!audioUrl || !sessionLanguage || !currentPhrase} 
+              disabled={!speakerId || isActionDisabled || !!currentPreviewAudioUrl || !sessionLanguage || !currentPhrase} 
               className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-base py-3 px-6"
               size="lg"
             >
@@ -425,14 +449,16 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
             </Button>
           )}
 
-          {recordingStatus === 'stopped' && audioUrl && !allPhrasesRecordedForSession && (
+          {recordingStatus === 'stopped' && currentPreviewAudioUrl && !allPhrasesRecordedForSession && (
              <Button 
               onClick={saveAndNextPhrase} 
-              disabled={!speakerId || isActionDisabled || !audioUrl} 
+              disabled={!speakerId || isActionDisabled || !currentPreviewAudioUrl || recordingStatus === 'submitting'} 
               className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground text-base py-3 px-6"
               size="lg"
             >
-              Save & Next {sessionLanguage} Phrase <ChevronRight className="ml-2 h-5 w-5" />
+              {recordingStatus === 'submitting' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
+              {recordingStatus === 'submitting' ? `Saving Phrase ${currentPhraseIndex + 1}...` : `Save Phrase ${currentPhraseIndex + 1} & Next`} 
+              {recordingStatus !== 'submitting' && <ChevronRight className="ml-2 h-5 w-5" /> }
             </Button>
           )}
         </div>
@@ -440,12 +466,12 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
             <p className="text-xs text-destructive text-center mt-2">Cannot record without a Speaker ID. Please log in.</p>
         )}
         
-        {(recordedSamples.length > 0 || recordingStatus === 'all_recorded') && (
+        {(recordedSamplesInfo.length > 0 || recordingStatus === 'all_recorded') && (
             <div className="mt-6 space-y-2">
                 <h4 className="text-md font-medium text-muted-foreground text-center">
-                  {sessionLanguage} Recording Progress: {recordedSamples.length} / {NUMBER_OF_PHRASES_TO_RECORD} Completed
+                  {sessionLanguage} Recording Progress: {recordedSamplesInfo.length} / {NUMBER_OF_PHRASES_TO_RECORD} Saved
                 </h4>
-                 <Progress value={(recordedSamples.length / NUMBER_OF_PHRASES_TO_RECORD) * 100} className="w-full h-3 [&>div]:bg-accent shadow-sm" />
+                 <Progress value={(recordedSamplesInfo.length / NUMBER_OF_PHRASES_TO_RECORD) * 100} className="w-full h-3 [&>div]:bg-accent shadow-sm" />
             </div>
         )}
 
@@ -453,15 +479,15 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
       <CardFooter className="flex flex-col items-stretch space-y-3 pt-6 border-t">
         <Button 
           onClick={handleSubmitAll} 
-          disabled={recordingStatus === 'submitting' || recordingStatus !== 'all_recorded' || !speakerId} 
+          disabled={recordingStatus === 'submitting' || !allPhrasesRecordedForSession || !speakerId} 
           className="w-full bg-green-600 hover:bg-green-700 text-white text-base py-3 px-6"
           size="lg"
         >
-          {recordingStatus === 'submitting' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-5 w-5" />}
-          {recordingStatus === 'submitting' ? `Submitting ${sessionLanguage} Samples...` : `Submit All ${sessionLanguage} (${recordedSamples.length}) Samples`}
+          {recordingStatus === 'submitting' && !allPhrasesRecordedForSession ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle className="mr-2 h-5 w-5" />}
+          {recordingStatus === 'submitting' && !allPhrasesRecordedForSession ? `Finalizing ${sessionLanguage} Session...` : `Finalize ${sessionLanguage} Session (${recordedSamplesInfo.length})`}
         </Button>
         
-        {(recordedSamples.length > 0 || currentPhraseIndex > 0) && recordingStatus !== 'submitting' && (
+        {(recordedSamplesInfo.length > 0 || currentPhraseIndex > 0) && recordingStatus !== 'submitting' && (
              <Button variant="outline" onClick={discardAllSamplesAndRestartSession} className="w-full text-base py-3 px-6 border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" size="lg">
                 <RefreshCcw className="mr-2 h-4 w-4" /> Discard All & Restart {sessionLanguage} Session
             </Button>
@@ -470,4 +496,3 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
     </Card>
   );
 }
-
