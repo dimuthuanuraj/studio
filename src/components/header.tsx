@@ -19,12 +19,12 @@ export function Header() {
               data-ai-hint="university emblem" 
             />
             <Image
-              src="https://eng.jfn.ac.lk/mlsp/wp-content/uploads/2021/05/banner.png" // Placeholder for MLSP Lab logo
+              src="https://eng.jfn.ac.lk/mlsp/wp-content/uploads/2021/05/banner.png"
               alt="MLSP Lab Logo"
               width={80}
-              height={40}
-              className="rounded-full"
+              height={15} // Adjusted height to maintain aspect ratio (original 960x180 -> 80x15)
               data-ai-hint="lab emblem"
+              // Removed rounded-full as banner images are typically rectangular
             />
             <span>VoiceID Lanka</span>
           </Link>
@@ -47,3 +47,4 @@ export function Header() {
     </header>
   );
 }
+
