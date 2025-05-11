@@ -11,7 +11,7 @@ export function Header() {
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-3 text-2xl font-bold text-primary">
             <Image 
-              src="https://picsum.photos/40/40" // Placeholder, replace with /uoj_logo.png
+              src="https://www.jfn.ac.lk/wp-content/uploads/2022/02/Logo-Color-300x300.png" // Placeholder, replace with /uoj_logo.png
               alt="University of Jaffna Logo" 
               width={40} 
               height={40} 
