@@ -1,34 +1,86 @@
 'use server';
 /**
- * @fileOverview Mocked Google Drive Service.
- * This service simulates interactions with Google Drive API for storing and retrieving audio files.
- * In a real application, this would use the `googleapis` library and proper authentication.
+ * @fileOverview Local File System-based Google Drive Mock Service.
+ * This service simulates interactions with Google Drive API by storing and retrieving audio files
+ * from the local file system. In a real application, this would use the `googleapis` library.
  */
 
-import type { Readable } from 'stream';
+import fs from 'fs/promises';
+import path from 'path';
 
-// Mock in-memory store for Drive files
-interface MockDriveFile {
-  id: string;
+// Define the storage path relative to the project root
+const LOCAL_STORAGE_PATH = path.join(process.cwd(), 'local_file_storage');
+const METADATA_FILE_PATH = path.join(LOCAL_STORAGE_PATH, 'metadata.json');
+
+interface FileMetadata {
+  id: string; // Will be the filename
   name: string;
   mimeType: string;
-  parentId?: string; // To simulate folder structure
-  content: Buffer; // Store file content as Buffer for simulation
   createdTime: string;
   speakerId?: string;
   recordedLanguage?: string;
   phraseIndex?: number;
   phraseText?: string;
-  duration?: string; // duration might be tricky to get reliably from Drive API without processing
+  duration?: string;
 }
 
-let mockDriveFiles: MockDriveFile[] = [];
-let fileIdCounter = 0;
-
-const MOCK_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || 'mock_voiceid_lanka_folder';
+// In-memory cache for metadata to reduce file reads, populated on first access.
+let metadataCache: Record<string, FileMetadata> | null = null;
 
 /**
- * Simulates uploading a file to Google Drive.
+ * Ensures the storage directory exists.
+ */
+async function ensureStorageDirectory(): Promise<void> {
+  try {
+    await fs.mkdir(LOCAL_STORAGE_PATH, { recursive: true });
+  } catch (error) {
+    console.error(`Error creating local storage directory at ${LOCAL_STORAGE_PATH}:`, error);
+    throw new Error('Could not create local storage directory.');
+  }
+}
+
+/**
+ * Reads the metadata file from the local file system.
+ * @returns A promise that resolves to the metadata object.
+ */
+async function readMetadata(): Promise<Record<string, FileMetadata>> {
+  if (metadataCache) {
+    return metadataCache;
+  }
+  
+  await ensureStorageDirectory();
+  try {
+    const metadataJson = await fs.readFile(METADATA_FILE_PATH, 'utf-8');
+    metadataCache = JSON.parse(metadataJson);
+    return metadataCache!;
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      // File doesn't exist, return empty object
+      return {};
+    }
+    console.error('Error reading metadata.json:', error);
+    throw new Error('Could not read metadata file.');
+  }
+}
+
+/**
+ * Writes the metadata object to the local file system.
+ * @param metadata The metadata object to write.
+ */
+async function writeMetadata(metadata: Record<string, FileMetadata>): Promise<void> {
+  await ensureStorageDirectory();
+  try {
+    await fs.writeFile(METADATA_FILE_PATH, JSON.stringify(metadata, null, 2));
+    metadataCache = metadata; // Update cache
+  } catch (error) {
+    console.error('Error writing metadata.json:', error);
+    throw new Error('Could not write metadata file.');
+  }
+}
+
+
+/**
+ * Simulates uploading a file to Google Drive by saving it to the local file system.
  * @param fileName The name of the file.
  * @param fileBuffer The content of the file as a Buffer.
  * @param mimeType The MIME type of the file.
@@ -36,7 +88,7 @@ const MOCK_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || 'mock_voiceid
  * @param recordedLanguage The language of the recording.
  * @param phraseIndex The index of the phrase.
  * @param phraseText The text of the phrase.
- * @returns A promise that resolves to the mock file metadata including a generated ID.
+ * @returns A promise that resolves to the file metadata including its name as the ID.
  */
 export async function uploadFileToDrive(
   fileName: string,
@@ -46,101 +98,85 @@ export async function uploadFileToDrive(
   recordedLanguage: string,
   phraseIndex: number,
   phraseText: string
-): Promise<Pick<MockDriveFile, 'id' | 'name'>> {
-  console.log(`Mock uploading to Drive: ${fileName}, size: ${fileBuffer.length} bytes, mimeType: ${mimeType}`);
+): Promise<{ id: string; name: string }> {
+  console.log(`Local FS saving: ${fileName}, size: ${fileBuffer.length} bytes, mimeType: ${mimeType}`);
   
-  const newFile: MockDriveFile = {
-    id: `mock_drive_file_${fileIdCounter++}`,
-    name: fileName,
-    mimeType,
-    parentId: MOCK_DRIVE_FOLDER_ID,
-    content: fileBuffer,
-    createdTime: new Date().toISOString(),
-    speakerId,
-    recordedLanguage,
-    phraseIndex,
-    phraseText,
-    // duration could be estimated or passed if known
-  };
-  mockDriveFiles.push(newFile);
-  
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  console.log('Mock Drive files after upload:', mockDriveFiles.map(f => ({id: f.id, name: f.name})));
-  return { id: newFile.id, name: newFile.name };
+  await ensureStorageDirectory();
+  const filePath = path.join(LOCAL_STORAGE_PATH, fileName);
+
+  try {
+    await fs.writeFile(filePath, fileBuffer);
+
+    const metadata = await readMetadata();
+    const newFileMetadata: FileMetadata = {
+      id: fileName, // Use filename as the unique ID for local storage
+      name: fileName,
+      mimeType,
+      createdTime: new Date().toISOString(),
+      speakerId,
+      recordedLanguage,
+      phraseIndex,
+      phraseText,
+      // duration could be handled by a library if needed
+    };
+    
+    metadata[fileName] = newFileMetadata;
+    await writeMetadata(metadata);
+    
+    console.log(`File saved locally to ${filePath}`);
+    return { id: newFileMetadata.id, name: newFileMetadata.name };
+
+  } catch (error) {
+      console.error(`Error saving file locally or updating metadata:`, error);
+      throw new Error('Failed to save file locally.');
+  }
 }
 
 /**
- * Simulates listing files from a Google Drive folder.
- * @returns A promise that resolves to an array of mock file metadata.
+ * Simulates listing files from a Google Drive folder by reading from local metadata.
+ * @returns A promise that resolves to an array of file metadata.
  */
-export async function listFilesFromDrive(): Promise<Partial<MockDriveFile>[]> {
-  console.log(`Mock listing files from Drive folder: ${MOCK_DRIVE_FOLDER_ID}`);
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
-  // Return relevant metadata, not the full content buffer for listings
-  return mockDriveFiles
-    .filter(file => file.parentId === MOCK_DRIVE_FOLDER_ID)
-    .map(({ content, ...metadata }) => metadata);
+export async function listFilesFromDrive(): Promise<Partial<FileMetadata>[]> {
+  console.log(`Local FS listing files from: ${LOCAL_STORAGE_PATH}`);
+  const metadata = await readMetadata();
+  return Object.values(metadata);
 }
 
 /**
- * Simulates downloading a file from Google Drive.
- * @param fileId The ID of the file to download.
+ * Simulates downloading a file from Google Drive by reading it from the local file system.
+ * @param fileId The ID of the file to download (which is its filename).
  * @returns A promise that resolves to the file content as a Buffer, or null if not found.
  */
 export async function downloadFileFromDrive(fileId: string): Promise<Buffer | null> {
-  console.log(`Mock downloading file from Drive: ${fileId}`);
-  const file = mockDriveFiles.find(f => f.id === fileId);
-  
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 150));
-  
-  if (file) {
-    return file.content;
+  console.log(`Local FS reading file: ${fileId}`);
+  const filePath = path.join(LOCAL_STORAGE_PATH, fileId);
+
+  try {
+    const fileBuffer = await fs.readFile(filePath);
+    return fileBuffer;
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      console.warn(`File not found at ${filePath}`);
+      return null;
+    }
+    console.error(`Error reading file from local storage:`, error);
+    throw new Error('Could not read file.');
   }
-  return null;
 }
 
 /**
- * Clears all mock files. Useful for testing or resetting state.
+ * Clears all mock files and metadata. Useful for testing.
  */
 export async function clearMockDriveFiles() {
-  mockDriveFiles = [];
-  fileIdCounter = 0;
-  console.log("Mock Drive files cleared.");
+  metadataCache = null;
+  await ensureStorageDirectory();
+  try {
+    const files = await fs.readdir(LOCAL_STORAGE_PATH);
+    for (const file of files) {
+      await fs.unlink(path.join(LOCAL_STORAGE_PATH, file));
+    }
+    console.log("Local storage directory cleared.");
+  } catch (error) {
+     console.error("Error clearing local storage directory:", error);
+  }
 }
-
-// Example of how you might initialize the Google API client in a real scenario (NOT USED BY MOCK)
-/*
-import { google } from 'googleapis';
-async function getDriveClient() {
-  // For service account:
-  // const auth = new google.auth.GoogleAuth({
-  //   keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS, // path to JSON key file
-  //   scopes: ['https://www.googleapis.com/auth/drive'],
-  // });
-  // const client = await auth.getClient();
-  // const drive = google.drive({ version: 'v3', auth: client });
-  // return drive;
-
-  // For OAuth2 (more complex setup involving user consent flow):
-  // const oauth2Client = new google.auth.OAuth2(
-  //   process.env.GOOGLE_CLIENT_ID,
-  //   process.env.GOOGLE_CLIENT_SECRET,
-  //   process.env.GOOGLE_REDIRECT_URI
-  // );
-  // oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN }); // Refresh token needs to be obtained and stored
-  // const drive = google.drive({ version: 'v3', auth: oauth2Client });
-  // return drive;
-  
-  throw new Error("Real Google Drive client not implemented in this mock service.");
-}
-*/
-
-// To make functions callable from client components via Server Actions,
-// they need to be exported and the file marked with 'use server'.
-// The functions above are already structured for this.
-
