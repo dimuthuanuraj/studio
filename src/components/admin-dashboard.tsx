@@ -22,10 +22,10 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { SpeakerProfile } from '@/services/speaker-id';
 import { getAllUsers } from '@/services/user-service';
-import { listAudioFilesFromDriveAction, getAudioFileFromDriveAction, type DriveAudioFileMetadata } from '@/app/actions/audioDriveActions';
+import { listAudioFilesFromDriveAction, getAudioFileFromDriveAction, type EnrichedDriveAudioFile } from '@/app/actions/audioDriveActions';
 
 
-type AdminAudioSample = DriveAudioFileMetadata & {
+type AdminAudioSample = EnrichedDriveAudioFile & {
   // Add any client-specific state if needed, e.g., temporary playback URL
   localPlaybackUrl?: string; 
 };
@@ -47,8 +47,10 @@ export function AdminDashboard() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const driveFiles = await listAudioFilesFromDriveAction();
-      const users = await getAllUsers(); // Now async
+      const driveFilesPromise = listAudioFilesFromDriveAction();
+      const usersPromise = getAllUsers();
+
+      const [driveFiles, users] = await Promise.all([driveFilesPromise, usersPromise]);
 
       // Enrich Drive files with speaker names if available
       const enrichedSamples = driveFiles.map(df => {
@@ -57,9 +59,9 @@ export function AdminDashboard() {
           ...df,
           speakerName: speaker?.fullName || df.speakerId, // Fallback to speakerId if name not found
           nativeLanguage: speaker?.language,
-          status: df.status || 'pending', // Ensure status is set
+          status: 'pending', // Default status, would be managed elsewhere
         };
-      }).sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+      }).sort((a, b) => new Date(b.createdTime || 0).getTime() - new Date(a.createdTime || 0).getTime());
       
       setAudioSamples(enrichedSamples as AdminAudioSample[]);
       setRegisteredSpeakers(users);
@@ -104,6 +106,7 @@ export function AdminDashboard() {
     toast({ title: "Loading Audio...", description: `Fetching ${sample.name} for playback.`});
     setIsActionLoading(true); // Use general action loader for fetching audio
     try {
+      if (!sample.id) throw new Error("Sample ID is missing.");
       const result = await getAudioFileFromDriveAction(sample.id);
       if (result.success && result.data) {
         const audio = new Audio(result.data); // result.data is a base64 data URL
@@ -119,15 +122,16 @@ export function AdminDashboard() {
       }
     } catch(e) {
         console.error("Exception playing audio:", e);
-        toast({ title: "Playback Exception", description: "An unexpected error occurred.", variant: "destructive" });
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        toast({ title: "Playback Exception", description: errorMessage, variant: "destructive" });
     } finally {
         setIsActionLoading(false);
     }
   };
   
   const handleDownloadAudio = async (sample: AdminAudioSample) => {
-    if (!sample.name) {
-        toast({ title: "Download Error", description: "Filename is missing.", variant: "destructive"});
+    if (!sample.name || !sample.id) {
+        toast({ title: "Download Error", description: "Filename or ID is missing.", variant: "destructive"});
         return;
     }
     toast({ title: "Preparing Download...", description: `Fetching ${sample.name}.`});
@@ -214,6 +218,7 @@ export function AdminDashboard() {
   };
 
   const handleDownloadAllBySpeaker = (speakerId: string) => {
+    if (!speakerId) return;
     const samplesToZip = audioSamples.filter(s => s.speakerId === speakerId);
     zipAndDownloadSamples(samplesToZip, `${speakerId}_all_samples`);
   };
@@ -222,8 +227,7 @@ export function AdminDashboard() {
     zipAndDownloadSamples(audioSamples, `VoiceID_Lanka_All_Submissions_${new Date().toISOString().split('T')[0]}`);
   };
 
-
-  const updateSampleStatus = (sampleId: string, newStatus: AdminAudioSample['status']) => {
+  const updateSampleStatus = (sampleId: string, newStatus: EnrichedDriveAudioFile['status']) => {
     // Note: This status update is client-side only for this mock.
     // A real app would update this in a database via a server action.
     setIsActionLoading(true);
@@ -237,11 +241,11 @@ export function AdminDashboard() {
         setSelectedSample(prev => prev ? { ...prev, status: newStatus } : null);
       }
       setIsActionLoading(false);
-      toast({ title: "Status Updated (Locally)", description: `Sample ${sampleId.substring(0,15)}... marked as ${newStatus}.`, variant: "default" });
+      toast({ title: "Status Updated (Locally)", description: `Sample marked as ${newStatus}.`, variant: "default" });
     }, 700);
   };
 
-  const getStatusBadgeVariant = (status?: AdminAudioSample['status']): "default" | "secondary" | "destructive" | "outline" => {
+  const getStatusBadgeVariant = (status?: EnrichedDriveAudioFile['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'pending':
         return 'secondary';
@@ -254,7 +258,7 @@ export function AdminDashboard() {
     }
   };
   
-  const getStatusIcon = (status?: AdminAudioSample['status']) => {
+  const getStatusIcon = (status?: EnrichedDriveAudioFile['status']) => {
     switch (status) {
       case 'pending':
         return <Hourglass className="h-4 w-4 mr-1 text-yellow-600" />;
@@ -354,7 +358,7 @@ export function AdminDashboard() {
       <Card className="shadow-xl">
         <CardHeader className="flex flex-row justify-between items-center border-b pb-4">
           <div>
-            <CardTitle className="text-2xl text-primary">Audio Sample Submissions (from Google Drive - Mock)</CardTitle>
+            <CardTitle className="text-2xl text-primary">Audio Sample Submissions (from Google Drive)</CardTitle>
             <CardDescription>Manage and review submitted audio samples for VoiceID Lanka.</CardDescription>
           </div>
           <Button onClick={fetchData} variant="outline" size="sm" disabled={isLoading || isZipping || isActionLoading} className="hover:bg-primary/10">
@@ -380,7 +384,6 @@ export function AdminDashboard() {
                     <TableHead className="whitespace-nowrap">Phrase No.</TableHead>
                     <TableHead>Filename (Drive)</TableHead>
                     <TableHead className="whitespace-nowrap">Timestamp</TableHead>
-                    <TableHead>Duration</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right w-[220px]">Actions</TableHead>
                   </TableRow>
@@ -389,20 +392,19 @@ export function AdminDashboard() {
                   {audioSamples.map((sample) => (
                     <TableRow key={sample.id} className="hover:bg-muted/40 transition-colors duration-150">
                       <TableCell className="font-medium truncate max-w-[130px]">{sample.speakerId || 'N/A'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{(sample as any).speakerName || 'N/A'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{(sample as any).nativeLanguage || 'N/A'}</TableCell>
+                      <TableCell className="whitespace-nowrap">{sample.speakerName || 'N/A'}</TableCell>
+                      <TableCell className="whitespace-nowrap">{sample.nativeLanguage || 'N/A'}</TableCell>
                       <TableCell className="whitespace-nowrap">
                         <Badge
-                          variant={sample.recordedLanguage === (sample as any).nativeLanguage ? "outline" : "secondary"}
-                          className={`text-xs px-2 py-1 ${sample.recordedLanguage === (sample as any).nativeLanguage ? 'border-primary/50 text-primary' : 'bg-accent/20 text-accent-foreground'}`}
+                          variant={sample.recordedLanguage === sample.nativeLanguage ? "outline" : "secondary"}
+                          className={`text-xs px-2 py-1 ${sample.recordedLanguage === sample.nativeLanguage ? 'border-primary/50 text-primary' : 'bg-accent/20 text-accent-foreground'}`}
                         >
                           {sample.recordedLanguage || 'N/A'}
                         </Badge>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-center">{sample.phraseIndex ?? 'N/A'}</TableCell>
                       <TableCell className="truncate max-w-[200px] text-sm text-muted-foreground">{sample.name}</TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">{sample.timestamp ? new Date(sample.timestamp).toLocaleString() : 'N/A'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{sample.duration || 'N/A'}</TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">{sample.createdTime ? new Date(sample.createdTime).toLocaleString() : 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(sample.status)} className="capitalize text-xs px-2 py-1 flex items-center w-max">
                           {getStatusIcon(sample.status)}
@@ -419,7 +421,7 @@ export function AdminDashboard() {
                         <Button variant="ghost" size="icon" onClick={() => openModal('sampleReview', sample)} title="View & Update Status" className="hover:text-accent transition-colors" disabled={isZipping || isActionLoading}>
                             <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDownloadAllBySpeaker(sample.speakerId!)} title={`Download All by ${sample.speakerId}`} className="hover:text-green-600 transition-colors" disabled={isZipping || isActionLoading || !sample.speakerId}>
+                        <Button variant="ghost" size="icon" onClick={() => handleDownloadAllBySpeaker(sample.speakerId)} title={`Download All by ${sample.speakerId}`} className="hover:text-green-600 transition-colors" disabled={isZipping || isActionLoading || !sample.speakerId}>
                           {isZipping ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileArchive className="h-4 w-4" />}
                         </Button>
                       </TableCell>
@@ -446,13 +448,11 @@ export function AdminDashboard() {
                   <div className="space-y-1.5 text-sm text-muted-foreground pt-2 border-t mt-2">
                       <p><strong>Drive File ID:</strong> <span className="text-foreground text-xs">{selectedSample.id}</span></p>
                       <p><strong>Speaker ID:</strong> <span className="text-foreground">{selectedSample.speakerId || 'N/A'}</span></p>
-                      {(selectedSample as any).speakerName && <p><strong>Speaker Name:</strong> <span className="text-foreground">{(selectedSample as any).speakerName}</span></p>}
-                      {(selectedSample as any).nativeLanguage && <p><strong>Native Language:</strong> <Badge variant="outline" className="ml-1">{(selectedSample as any).nativeLanguage}</Badge></p>}
-                      <p><strong>Recorded Language:</strong> <Badge variant={selectedSample.recordedLanguage === (selectedSample as any).nativeLanguage ? "outline" : "secondary"} className="ml-1">{selectedSample.recordedLanguage || 'N/A'}</Badge></p>
+                      {selectedSample.speakerName && <p><strong>Speaker Name:</strong> <span className="text-foreground">{selectedSample.speakerName}</span></p>}
+                      {selectedSample.nativeLanguage && <p><strong>Native Language:</strong> <Badge variant="outline" className="ml-1">{selectedSample.nativeLanguage}</Badge></p>}
+                      <p><strong>Recorded Language:</strong> <Badge variant={selectedSample.recordedLanguage === selectedSample.nativeLanguage ? "outline" : "secondary"} className="ml-1">{selectedSample.recordedLanguage || 'N/A'}</Badge></p>
                       {selectedSample.phraseIndex != null && <p><strong>Phrase No:</strong> <span className="text-foreground">{selectedSample.phraseIndex}</span></p>}
-                      {selectedSample.phraseText && <p><strong>Phrase Text:</strong> <em className="text-foreground">"{selectedSample.phraseText}"</em></p>}
-                      <p><strong>Submitted:</strong> <span className="text-foreground">{selectedSample.timestamp ? new Date(selectedSample.timestamp).toLocaleString() : 'N/A'}</span></p>
-                      <p><strong>Duration:</strong> <span className="text-foreground">{selectedSample.duration || 'N/A'}</span></p>
+                      <p><strong>Submitted:</strong> <span className="text-foreground">{selectedSample.createdTime ? new Date(selectedSample.createdTime).toLocaleString() : 'N/A'}</span></p>
                       <p><strong>Current Status:</strong> <Badge variant={getStatusBadgeVariant(selectedSample.status)} className="capitalize ml-1 text-xs px-2 py-1 flex items-center w-max">{getStatusIcon(selectedSample.status)}{selectedSample.status}</Badge></p>
                   </div>
                 </AlertDialogDescription>
@@ -461,25 +461,25 @@ export function AdminDashboard() {
                 <h4 className="font-semibold mb-3 text-foreground">Update Status (Local Mock):</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <Button
-                    onClick={() => updateSampleStatus(selectedSample.id, 'verified')}
+                    onClick={() => selectedSample.id && updateSampleStatus(selectedSample.id, 'verified')}
                     className="bg-green-600 hover:bg-green-700 text-white flex-1"
-                    disabled={selectedSample.status === 'verified' || isActionLoading || isZipping}
+                    disabled={selectedSample.status === 'verified' || isActionLoading || isZipping || !selectedSample.id}
                   >
                     {isActionLoading && selectedSample.status !== 'verified' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle2 className="mr-2 h-4 w-4"/>} Verify
                   </Button>
                   <Button
-                    onClick={() => updateSampleStatus(selectedSample.id, 'rejected')}
+                    onClick={() => selectedSample.id && updateSampleStatus(selectedSample.id, 'rejected')}
                     variant="destructive"
                     className="flex-1"
-                    disabled={selectedSample.status === 'rejected' || isActionLoading || isZipping}
+                    disabled={selectedSample.status === 'rejected' || isActionLoading || isZipping || !selectedSample.id}
                   >
                      {isActionLoading && selectedSample.status !== 'rejected' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <XCircle className="mr-2 h-4 w-4"/>} Reject
                   </Button>
                    <Button
-                    onClick={() => updateSampleStatus(selectedSample.id, 'pending')}
+                    onClick={() => selectedSample.id && updateSampleStatus(selectedSample.id, 'pending')}
                     variant="secondary"
                     className="flex-1 hover:bg-yellow-500/20 text-yellow-700 border-yellow-500"
-                    disabled={selectedSample.status === 'pending' || isActionLoading || isZipping}
+                    disabled={selectedSample.status === 'pending' || isActionLoading || isZipping || !selectedSample.id}
                   >
                     {isActionLoading && selectedSample.status !== 'pending' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Hourglass className="mr-2 h-4 w-4"/>} To Pending
                   </Button>
@@ -502,7 +502,7 @@ export function AdminDashboard() {
                 <FileAudio className="mr-2 h-6 w-6" /> All Audio Submissions ({audioSamples.length})
               </AlertDialogTitle>
               <AlertDialogDescription>
-                View all submitted audio samples from Google Drive (Mock). You can download all samples as a single ZIP file.
+                View all submitted audio samples from Google Drive. You can download all samples as a single ZIP file.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="my-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -597,3 +597,5 @@ export function AdminDashboard() {
     </div>
   );
 }
+
+    
