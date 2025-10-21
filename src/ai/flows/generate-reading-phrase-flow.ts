@@ -39,7 +39,7 @@ Desired reading time: 8-15 seconds.
 
 Example for Sinhala (if language is Sinhala): "අහස නිල් පාටයි, සමහර වලාකුළු සුදු පාටයි, ඒ වගේම හිරු එළිය දීප්තිමත්ව බබලනවා."
 Example for Tamil (if language is Tamil): "வானம் நீல நிறமாகவும், சில மேகங்கள் வெண்மையாகவும், சூரியன் பிரகாசமாகவும் பிரகாசிக்கிறது."
-Example for English (if language is English): "The sky is blue, some clouds are white, and the sun is shining brightly."
+Example for English (if language is English): "The sky is blue, some clouds are white, and a smile can brighten anyone's day, can't it?"
 
 Return ONLY the generated sentence as the 'phrase' output.
 `,
@@ -54,7 +54,7 @@ const generateReadingPhraseFlow = ai.defineFlow(
   async (input) => {
     // For very short generations like this, a higher temperature can lead to more varied and natural sentences.
     // However, for consistency in meeting the "8-15 second" read time, a moderate temperature is safer.
-    const {output} = await prompt(input, {temperature: 0.6});
+    const {output} = await prompt(input, {config: {temperature: 0.6}});
     return output!;
   }
 );

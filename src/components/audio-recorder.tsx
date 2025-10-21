@@ -449,10 +449,10 @@ export function AudioRecorder({ userProfile, sessionLanguage }: AudioRecorderPro
             </Button>
           )}
 
-          {recordingStatus === 'stopped' && currentPreviewAudioUrl && !allPhrasesRecordedForSession && (
+          {(recordingStatus === 'stopped' || recordingStatus === 'submitting') && currentPreviewAudioUrl && !allPhrasesRecordedForSession && (
              <Button 
               onClick={saveAndNextPhrase} 
-              disabled={!speakerId || isActionDisabled || !currentPreviewAudioUrl || recordingStatus === 'submitting'} 
+              disabled={!speakerId || isActionDisabled || !currentPreviewAudioUrl} 
               className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground text-base py-3 px-6"
               size="lg"
             >

@@ -3,6 +3,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { UserCog, UserPlus } from 'lucide-react';
+import UojLogo from '@/img/UoJ_logo_optimized.png';
+import MlslpLogo from '@/img/MLSP_lab_logo_optimized.png';
 
 export function Header() {
   return (
@@ -11,7 +13,7 @@ export function Header() {
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-3 text-2xl font-bold text-primary">
             <Image 
-              src="https://www.jfn.ac.lk/wp-content/uploads/2022/02/Logo-Color-300x300.png"
+              src={UojLogo}
               alt="University of Jaffna Logo" 
               width={40} 
               height={40} 
@@ -19,7 +21,7 @@ export function Header() {
               data-ai-hint="university emblem" 
             />
             <Image
-              src="https://eng.jfn.ac.lk/mlsp/wp-content/uploads/2021/05/banner.png"
+              src={MlslpLogo}
               alt="MLSP Lab Logo"
               width={120} // Increased width
               height={23} // Increased height, maintaining aspect ratio (original 960x180 -> 120x22.5, rounded to 23)
