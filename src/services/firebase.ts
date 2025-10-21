@@ -11,12 +11,12 @@ import { getFirestore } from "firebase/firestore";
 // 3. Copy the 'firebaseConfig' object and paste it below, replacing the placeholder.
 //
 const firebaseConfig = {
-  apiKey: "AIzaSyDphljo1GKvq4P8DlexrEqXsMDVdIN5ojQ",
-  authDomain: "voiceid-lanka.firebaseapp.com",
-  projectId: "voiceid-lanka",
-  storageBucket: "voiceid-lanka.firebasestorage.app",
-  messagingSenderId: "202475807088",
-  appId: "1:202475807088:web:7256b0df57356798a96fb5"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
 
