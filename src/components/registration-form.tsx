@@ -19,7 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { generateSpeakerId, type SpeakerProfile } from '@/services/speaker-id'; 
-import { addUser } from '@/services/user-service';
+import { addUserProfile } from '@/services/user-service';
 import { Loader2, UserPlus } from 'lucide-react';
 import { Controller } from 'react-hook-form';
 import { auth } from '@/services/firebase';
@@ -62,10 +62,15 @@ export function RegistrationForm() {
     setIsSubmitting(true);
 
     try {
+      // 1. Create the user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const user = userCredential.user;
+      
+      // 2. Generate the sequential speakerId
       const speakerIdObj = await generateSpeakerId(); 
       const newSpeakerId = speakerIdObj.id;
       
+      // 3. Create the speaker profile object
       const speakerProfile: SpeakerProfile = {
         speakerId: newSpeakerId,
         fullName: data.fullName,
@@ -74,9 +79,10 @@ export function RegistrationForm() {
         language: data.language,
       };
 
-      await addUser(speakerProfile);
+      // 4. Save the profile to Firestore using the Firebase UID as the document ID
+      await addUserProfile(user.uid, speakerProfile);
       
-      // Redirect to success page with user data
+      // 5. Redirect to success page with user data
       const queryParams = new URLSearchParams({
         speakerId: newSpeakerId,
         fullName: data.fullName,

@@ -5,14 +5,14 @@ import type { ReactNode } from 'react';
 import { createContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/services/firebase';
-import { getUserBySpeakerId, getAllUsers } from '@/services/user-service';
-import type { SpeakerProfile as OriginalSpeakerProfile} from '@/services/speaker-id'; // Use original type
+import { getUserProfile } from '@/services/user-service';
+import type { SpeakerProfile as OriginalSpeakerProfile} from '@/services/speaker-id';
 
 export interface SpeakerProfile extends OriginalSpeakerProfile {}
 
 interface AuthContextType {
   loggedInUser: SpeakerProfile | null;
-  firebaseUser: User | null; // Keep track of the raw firebase user
+  firebaseUser: User | null;
   logoutUser: () => void;
   isLoading: boolean;
 }
@@ -29,18 +29,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       if (user) {
         setFirebaseUser(user);
-        
-        // This is a workaround because we can't directly query Firestore by email without specific rules.
-        // In a real app, you would fetch the user profile based on the Firebase UID.
-        // For this prototype, we'll find the user profile by matching the email.
-        const allUsers = await getAllUsers();
-        const profile = allUsers.find(p => p.email.toLowerCase() === user.email?.toLowerCase());
+        // Fetch the user profile from Firestore using their unique Firebase UID.
+        // This is the standard and most reliable way to link auth with database records.
+        const profile = await getUserProfile(user.uid);
 
         if (profile) {
             setLoggedInUser(profile);
         } else {
-            // This might happen if a user exists in Auth but their profile wasn't created in Firestore.
-            console.error("User authenticated, but no speaker profile found for email:", user.email);
+            // This case is less likely now, but could happen if the Firestore document was manually deleted.
+            console.error("User authenticated, but no speaker profile found for UID:", user.uid);
+            // Log out the user to prevent being in a broken state.
+            auth.signOut();
             setLoggedInUser(null);
         }
       } else {
@@ -66,7 +65,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  // We are not exporting loginUser anymore as it is handled by the components directly
   return (
     <AuthContext.Provider value={{ loggedInUser, firebaseUser, logoutUser, isLoading }}>
       {children}
