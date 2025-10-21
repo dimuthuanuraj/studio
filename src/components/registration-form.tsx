@@ -98,6 +98,8 @@ export function RegistrationForm() {
       let description = 'An error occurred during registration. Please try again.';
       if (error.code === 'auth/email-already-in-use') {
         description = 'This email address is already registered. Please try logging in.';
+      } else if (error.code === 'auth/invalid-api-key') {
+          description = 'The Firebase API key is not valid. Please check your configuration.';
       }
       toast({
         title: 'Registration Failed',
