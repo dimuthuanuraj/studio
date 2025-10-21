@@ -24,22 +24,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loggedInUser, setLoggedInUser] = useState<SpeakerProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false); // New state to track client-side mounting
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true); // Component has mounted, we are on the client
-
+    setIsClient(true);
+  }, []);
+  
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user); 
+      setFirebaseUser(user);
       if (user) {
-        if (!loggedInUser || loggedInUser.email !== user.email) {
-          const profile = await getUserProfile(user.uid);
-          if (profile) {
+        // The profile is now set via the login form's onLoginSuccess callback.
+        // We only fetch here if the user is already logged in on page load.
+        if (!loggedInUser) {
+           const profile = await getUserProfile(user.uid);
+           if (profile) {
             setLoggedInUser(profile);
-          } else {
-            console.error("User is authenticated but profile is missing in Firestore. Logging out.");
-            auth.signOut();
-          }
+           } else {
+             console.error("User is authenticated but profile is missing in Firestore. Logging out.");
+             auth.signOut();
+           }
         }
       } else {
         setLoggedInUser(null);
@@ -47,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -67,12 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   if (!isClient) {
-    // On the server, or before the first client-side render, render a static loading state
-    return (
-      <div className="flex flex-col min-h-screen bg-secondary items-center justify-center">
-        <p className="text-lg text-muted-foreground">Loading...</p>
-      </div>
-    );
+    // Render nothing on the server to avoid hydration mismatch
+    return null;
   }
 
   return (

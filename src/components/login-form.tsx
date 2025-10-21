@@ -57,7 +57,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         await signInWithEmailAndPassword(auth, userProfile.email, data.password);
         
         // Step 3: If Firebase auth is successful, call the main onLoginSuccess handler
-        // with the complete user profile. The AuthContext will now handle this.
+        // with the complete user profile.
         toast({
           title: 'Login Successful!',
           description: `Welcome back, ${userProfile.fullName}!`,
