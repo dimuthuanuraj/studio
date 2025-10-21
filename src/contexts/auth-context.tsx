@@ -15,6 +15,7 @@ interface AuthContextType {
   firebaseUser: User | null;
   logoutUser: () => void;
   isLoading: boolean;
+  setLoggedInUser: (user: SpeakerProfile | null) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,18 +30,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       if (user) {
         setFirebaseUser(user);
-        // Fetch the user profile from Firestore using their unique Firebase UID.
-        // This is the standard and most reliable way to link auth with database records.
-        const profile = await getUserProfile(user.uid);
-
-        if (profile) {
-            setLoggedInUser(profile);
-        } else {
-            // This case is less likely now, but could happen if the Firestore document was manually deleted.
-            console.error("User authenticated, but no speaker profile found for UID:", user.uid);
-            // Log out the user to prevent being in a broken state.
-            auth.signOut();
-            setLoggedInUser(null);
+        // If the user is logged in but we don't have their profile yet, fetch it.
+        // This handles session restoration on page reload.
+        if (!loggedInUser) {
+            const profile = await getUserProfile(user.uid);
+            if (profile) {
+                setLoggedInUser(profile);
+            } else {
+                console.error("User authenticated, but no speaker profile found for UID:", user.uid);
+                auth.signOut();
+            }
         }
       } else {
         setFirebaseUser(null);
@@ -51,10 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, []);
+  }, [loggedInUser]);
 
   const logoutUser = () => {
     auth.signOut();
+    setLoggedInUser(null);
   };
 
   if (isLoading) {
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ loggedInUser, firebaseUser, logoutUser, isLoading }}>
+    <AuthContext.Provider value={{ loggedInUser, firebaseUser, logoutUser, isLoading, setLoggedInUser }}>
       {children}
     </AuthContext.Provider>
   );

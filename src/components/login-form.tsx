@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogIn } from 'lucide-react';
 import type { SpeakerProfile } from '@/contexts/auth-context';
+import { AuthContext } from '@/contexts/auth-context';
 import { auth } from '@/services/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getUserBySpeakerId } from '@/services/user-service';
@@ -30,6 +31,7 @@ interface LoginFormProps {
 export function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const authContext = useContext(AuthContext);
 
   const {
     register,
@@ -51,19 +53,30 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
       if (userProfile) {
         await signInWithEmailAndPassword(auth, userProfile.email, data.password);
+        
+        // After successful Firebase auth, call onLoginSuccess with the profile
         toast({
           title: 'Login Successful!',
           description: `Welcome back, ${userProfile.fullName}!`,
         });
-        // onLoginSuccess will be called by the AuthProvider's onAuthStateChanged listener
+        
+        onLoginSuccess(userProfile);
+
       } else {
-        throw new Error("Invalid Speaker ID or credentials.");
+        throw new Error("Invalid Speaker ID.");
       }
     } catch (error) {
       console.error("Login failed:", error);
+      let message = 'Invalid Speaker ID or password. Please check your credentials or register.';
+      if (error instanceof Error && error.message.includes('auth/wrong-password')) {
+          message = 'Incorrect password. Please try again.';
+      } else if (error instanceof Error && error.message.includes('Invalid Speaker ID')) {
+          message = 'No user found with that Speaker ID.';
+      }
+
       toast({
         title: 'Login Failed',
-        description: 'Invalid Speaker ID or password. Please check your credentials or register.',
+        description: message,
         variant: 'destructive',
       });
     } finally {
