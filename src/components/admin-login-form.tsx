@@ -23,8 +23,11 @@ interface AdminLoginFormProps {
   onLoginSuccess: () => void;
 }
 
+// WARNING: Storing credentials directly in the code is a significant security risk.
+// These credentials can be easily exposed. It is highly recommended to implement a proper
+// authentication system using a secure backend service like Firebase Authentication.
 const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'passwordadmin';
+const ADMIN_PASSWORD = 'Dimuthu100';
 
 export function AdminLoginForm({ onLoginSuccess }: AdminLoginFormProps) {
   const { toast } = useToast();

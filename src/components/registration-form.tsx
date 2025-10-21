@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -38,16 +39,14 @@ type RegistrationFormValues = z.infer<typeof registrationSchema>;
 
 export function RegistrationForm() {
   const { toast } = useToast();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [generatedSpeakerId, setGeneratedSpeakerId] = useState<string | null>(null);
-
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     control, 
-    reset,
   } = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
@@ -61,38 +60,33 @@ export function RegistrationForm() {
 
   const onSubmit: SubmitHandler<RegistrationFormValues> = async (data) => {
     setIsSubmitting(true);
-    setGeneratedSpeakerId(null);
 
     try {
-      // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      const user = userCredential.user;
-
-      // 2. Generate a new Speaker ID
       const speakerIdObj = await generateSpeakerId(); 
       const newSpeakerId = speakerIdObj.id;
       
-      // 3. Create the speaker profile object
       const speakerProfile: SpeakerProfile = {
         speakerId: newSpeakerId,
         fullName: data.fullName,
-        email: data.email, // Use the email from the form
+        email: data.email,
         whatsappNumber: data.whatsappNumber,
         language: data.language,
       };
 
-      // 4. Save the profile to Firestore
       await addUser(speakerProfile);
-
-      console.log('User Registered:', speakerProfile);
       
-      setGeneratedSpeakerId(newSpeakerId);
+      // Redirect to success page with user data
+      const queryParams = new URLSearchParams({
+        speakerId: newSpeakerId,
+        fullName: data.fullName,
+        email: data.email,
+        whatsapp: data.whatsappNumber,
+        language: data.language,
+      }).toString();
 
-      toast({
-        title: 'Registration Successful!',
-        description: `Welcome, ${data.fullName}! Your Speaker ID is ${newSpeakerId}. Please save it.`,
-      });
-      reset(); 
+      router.push(`/registration-success?${queryParams}`);
+
     } catch (error: any) {
       console.error('Registration failed:', error);
       let description = 'An error occurred during registration. Please try again.';
@@ -184,10 +178,10 @@ export function RegistrationForm() {
             />
             {errors.language && <p className="text-sm text-destructive">{errors.language.message}</p>}
           </div>
-          
+        
         </CardContent>
-        <CardFooter className="flex flex-col items-stretch space-y-4">
-           <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting}>
+        <CardFooter>
+          <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting}>
             {isSubmitting ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
@@ -195,14 +189,6 @@ export function RegistrationForm() {
             )}
             {isSubmitting ? 'Registering...' : 'Register'}
           </Button>
-          {generatedSpeakerId && !isSubmitting && ( // Only show if registration was successful and not submitting
-            <div className="mt-4 p-3 bg-primary/10 border border-primary rounded-md text-center">
-              <p className="text-sm text-primary">
-                Registration successful! Your Speaker ID: <strong>{generatedSpeakerId}</strong>
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Please note down your Speaker ID. You will need it to log in.</p>
-            </div>
-          )}
         </CardFooter>
       </form>
     </Card>
