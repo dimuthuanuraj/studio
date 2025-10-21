@@ -10,10 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, LogIn } from 'lucide-react';
+import { Loader2, LogIn, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { SpeakerProfile } from '@/contexts/auth-context';
 import { AuthContext } from '@/contexts/auth-context';
-import { auth } from '@/services/firebase';
+import { auth, app as firebaseApp } from '@/services/firebase'; // Import app
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getUserBySpeakerId } from '@/services/user-service';
 
@@ -87,6 +87,31 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       setIsSubmitting(false);
     }
   };
+  
+  const testFirebaseConnection = () => {
+    try {
+      // The `firebaseApp` is already initialized in firebase.ts. 
+      // If the configuration is invalid, an error would have been thrown on import.
+      // We can check the app's name to confirm it's the default instance.
+      if (firebaseApp && firebaseApp.name === '[DEFAULT]') {
+        toast({
+          title: 'Firebase Connection Successful!',
+          description: `Successfully connected to project: ${firebaseApp.options.projectId}`,
+          variant: 'default',
+        });
+      } else {
+        throw new Error('Firebase app instance not found or not default.');
+      }
+    } catch (error: any) {
+      console.error("Firebase connection test failed:", error);
+      toast({
+        title: 'Firebase Connection Failed',
+        description: error.message || 'Check browser console for details. Ensure firebase.ts has the correct config.',
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   return (
     <Card className="w-full max-w-md shadow-xl bg-card">
@@ -120,7 +145,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
             {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex-col items-stretch space-y-3">
           <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting}>
             {isSubmitting ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -128,6 +153,9 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
               <LogIn className="mr-2 h-5 w-5" />
             )}
             {isSubmitting ? 'Logging In...' : 'Login'}
+          </Button>
+          <Button type="button" variant="outline" onClick={testFirebaseConnection}>
+            <CheckCircle className="mr-2 h-4 w-4 text-green-500" /> Test Firebase Connection
           </Button>
         </CardFooter>
       </form>
