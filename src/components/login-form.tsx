@@ -68,7 +68,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
     } catch (error) {
       console.error("Login failed:", error);
       let message = 'Invalid Speaker ID or password. Please check your credentials or register.';
-      if (error instanceof Error && error.message.includes('auth/wrong-password')) {
+      if (error instanceof Error && (error.message.includes('auth/wrong-password') || error.message.includes('auth/invalid-credential'))) {
           message = 'Incorrect password. Please try again.';
       } else if (error instanceof Error && error.message.includes('Invalid Speaker ID')) {
           message = 'No user found with that Speaker ID.';

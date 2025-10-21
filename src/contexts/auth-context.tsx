@@ -32,13 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setFirebaseUser(user);
         // If the user is logged in but we don't have their profile yet, fetch it.
         // This handles session restoration on page reload.
-        if (!loggedInUser) {
+        if (!loggedInUser || loggedInUser.email !== user.email) {
             const profile = await getUserProfile(user.uid);
             if (profile) {
                 setLoggedInUser(profile);
             } else {
                 console.error("User authenticated, but no speaker profile found for UID:", user.uid);
-                auth.signOut();
+                // If profile is missing, something is wrong, log them out to be safe
+                auth.signOut(); 
             }
         }
       } else {
@@ -50,11 +51,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, [loggedInUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const logoutUser = () => {
     auth.signOut();
     setLoggedInUser(null);
+    setFirebaseUser(null);
   };
 
   if (isLoading) {
