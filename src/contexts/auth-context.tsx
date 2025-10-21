@@ -27,26 +27,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setIsLoading(true);
+      setFirebaseUser(user); // Keep track of the raw firebase user object
       if (user) {
-        setFirebaseUser(user);
-        // If the user is logged in but we don't have their profile yet, fetch it.
-        // This handles session restoration on page reload.
-        if (!loggedInUser || loggedInUser.email !== user.email) {
-            const profile = await getUserProfile(user.uid);
-            if (profile) {
-                setLoggedInUser(profile);
-            } else {
-                console.error("User authenticated, but no speaker profile found for UID:", user.uid);
-                // If profile is missing, something is wrong, log them out to be safe
-                auth.signOut(); 
-            }
+        // If a user is authenticated via Firebase, but we don't have the profile
+        // in our React state yet (e.g., on a page refresh), fetch it.
+        if (!loggedInUser) {
+          setIsLoading(true);
+          const profile = await getUserProfile(user.uid);
+          if (profile) {
+            setLoggedInUser(profile);
+          } else {
+             // This case is unlikely if registration is transactional, but handles edge cases.
+            console.error("User is authenticated but profile is missing in Firestore. Logging out.");
+            auth.signOut();
+          }
+          setIsLoading(false);
         }
       } else {
-        setFirebaseUser(null);
+        // User logged out
         setLoggedInUser(null);
       }
-      setIsLoading(false);
+      // Only set loading to false here after the initial check is done
+      if(isLoading) setIsLoading(false);
     });
 
     // Cleanup subscription on unmount
@@ -54,23 +56,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const logoutUser = () => {
-    auth.signOut();
+  const logoutUser = async () => {
+    await auth.signOut();
     setLoggedInUser(null);
     setFirebaseUser(null);
   };
 
-  if (isLoading) {
-    return (
-        <div className="flex flex-col min-h-screen bg-secondary items-center justify-center">
-            <p className="text-lg text-muted-foreground">Loading...</p>
-        </div>
-    );
-  }
+  const value = { 
+    loggedInUser, 
+    firebaseUser, 
+    logoutUser, 
+    isLoading,
+    setLoggedInUser, // This is called by the login form on successful login
+  };
 
   return (
-    <AuthContext.Provider value={{ loggedInUser, firebaseUser, logoutUser, isLoading, setLoggedInUser }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {isLoading ? (
+         <div className="flex flex-col min-h-screen bg-secondary items-center justify-center">
+             <p className="text-lg text-muted-foreground">Loading Session...</p>
+         </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }

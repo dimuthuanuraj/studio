@@ -49,12 +49,15 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setIsSubmitting(true);
     
     try {
+      // Step 1: Find user profile by Speaker ID to get their email
       const userProfile = await getUserBySpeakerId(data.speakerId);
 
       if (userProfile) {
+        // Step 2: Attempt to sign in with Firebase Auth using the fetched email and provided password
         await signInWithEmailAndPassword(auth, userProfile.email, data.password);
         
-        // After successful Firebase auth, call onLoginSuccess with the profile
+        // Step 3: If Firebase auth is successful, call the main onLoginSuccess handler
+        // with the complete user profile. The AuthContext will now handle this.
         toast({
           title: 'Login Successful!',
           description: `Welcome back, ${userProfile.fullName}!`,
@@ -63,6 +66,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         onLoginSuccess(userProfile);
 
       } else {
+        // This error is for when the Speaker ID itself is not found in the database
         throw new Error("Invalid Speaker ID.");
       }
     } catch (error) {
