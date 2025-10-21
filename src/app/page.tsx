@@ -44,11 +44,13 @@ export default function HomePage() {
     );
   }
 
-  const { loggedInUser, loginUser, logoutUser } = authContext;
+  const { loggedInUser, logoutUser } = authContext;
 
+  // Login is now handled by the context based on Firebase auth state
   const handleLoginSuccess = (user: SpeakerProfile) => {
-    loginUser(user);
-    // Do not automatically set language here, let user choose
+    // This function is no longer the primary way to set the user, 
+    // but can be kept for compatibility if needed elsewhere.
+    // The AuthProvider's onAuthStateChanged will set the user.
   };
 
   const handleLanguageSelect = (language: RecordingLanguage) => {
@@ -132,4 +134,3 @@ export default function HomePage() {
     </div>
   );
 }
-

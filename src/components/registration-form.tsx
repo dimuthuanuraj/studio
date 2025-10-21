@@ -18,16 +18,18 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { generateSpeakerId, type SpeakerProfile } from '@/services/speaker-id'; 
-import { addUser } from '@/services/user-service'; // Import addUser
+import { addUser } from '@/services/user-service';
 import { Loader2, UserPlus } from 'lucide-react';
 import { Controller } from 'react-hook-form';
-
+import { auth } from '@/services/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 const whatsappRegex = /^(?:\+94|0)?7[0-9]{8}$/;
 
 const registrationSchema = z.object({
   fullName: z.string().min(3, { message: 'Full name must be at least 3 characters.' }).max(50),
   email: z.string().email({ message: "Invalid email address." }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
   whatsappNumber: z.string().regex(whatsappRegex, { message: 'Invalid WhatsApp number. Use format like +947XXXXXXXX or 07XXXXXXXX.' }),
   language: z.enum(['Sinhala', 'Tamil'], { required_error: 'Please select your primary language.' }),
 });
@@ -51,6 +53,7 @@ export function RegistrationForm() {
     defaultValues: {
       fullName: '',
       email: '',
+      password: '',
       whatsappNumber: '',
       language: undefined, 
     }
@@ -61,19 +64,25 @@ export function RegistrationForm() {
     setGeneratedSpeakerId(null);
 
     try {
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const user = userCredential.user;
+
+      // 2. Generate a new Speaker ID
       const speakerIdObj = await generateSpeakerId(); 
       const newSpeakerId = speakerIdObj.id;
       
+      // 3. Create the speaker profile object
       const speakerProfile: SpeakerProfile = {
         speakerId: newSpeakerId,
         fullName: data.fullName,
-        email: data.email,
+        email: data.email, // Use the email from the form
         whatsappNumber: data.whatsappNumber,
         language: data.language,
-        // registrationDate: new Date().toISOString(), // Add registration date
       };
 
-      addUser(speakerProfile); // Add user to mock user service
+      // 4. Save the profile to Firestore
+      await addUser(speakerProfile);
 
       console.log('User Registered:', speakerProfile);
       
@@ -84,11 +93,15 @@ export function RegistrationForm() {
         description: `Welcome, ${data.fullName}! Your Speaker ID is ${newSpeakerId}. Please save it.`,
       });
       reset(); 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration failed:', error);
+      let description = 'An error occurred during registration. Please try again.';
+      if (error.code === 'auth/email-already-in-use') {
+        description = 'This email address is already registered. Please try logging in.';
+      }
       toast({
         title: 'Registration Failed',
-        description: 'An error occurred during registration. Please try again.',
+        description,
         variant: 'destructive',
       });
     } finally {
@@ -126,6 +139,18 @@ export function RegistrationForm() {
               className={errors.email ? 'border-destructive' : ''}
             />
             {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              {...register('password')}
+              className={errors.password ? 'border-destructive' : ''}
+            />
+            {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
           </div>
 
           <div className="space-y-2">

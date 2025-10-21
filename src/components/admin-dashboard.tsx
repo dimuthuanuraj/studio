@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -47,7 +48,7 @@ export function AdminDashboard() {
     setIsLoading(true);
     try {
       const driveFiles = await listAudioFilesFromDriveAction();
-      const users = getAllUsers(); // Assuming this is synchronous or already loaded
+      const users = await getAllUsers(); // Now async
 
       // Enrich Drive files with speaker names if available
       const enrichedSamples = driveFiles.map(df => {

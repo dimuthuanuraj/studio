@@ -12,11 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogIn } from 'lucide-react';
 import type { SpeakerProfile } from '@/contexts/auth-context';
-import { mockUsers, validateUser } from '@/services/user-service'; // Using user-service
+import { auth } from '@/services/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { getUserBySpeakerId } from '@/services/user-service';
 
 const loginSchema = z.object({
   speakerId: z.string().min(1, { message: 'Speaker ID is required.' }),
-  email: z.string().email({ message: 'Invalid email address.' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -37,39 +39,43 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
     resolver: zodResolver(loginSchema),
     defaultValues: {
       speakerId: '',
-      email: '',
+      password: '',
     }
   });
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     setIsSubmitting(true);
     
-    // Simulate API call for login
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const userProfile = await getUserBySpeakerId(data.speakerId);
 
-    const user = validateUser(data.speakerId, data.email);
-
-    if (user) {
-      toast({
-        title: 'Login Successful!',
-        description: `Welcome back, ${user.fullName}!`,
-      });
-      onLoginSuccess(user);
-    } else {
+      if (userProfile) {
+        await signInWithEmailAndPassword(auth, userProfile.email, data.password);
+        toast({
+          title: 'Login Successful!',
+          description: `Welcome back, ${userProfile.fullName}!`,
+        });
+        // onLoginSuccess will be called by the AuthProvider's onAuthStateChanged listener
+      } else {
+        throw new Error("Invalid Speaker ID or credentials.");
+      }
+    } catch (error) {
+      console.error("Login failed:", error);
       toast({
         title: 'Login Failed',
-        description: 'Invalid Speaker ID or Email. Please check your credentials or register.',
+        description: 'Invalid Speaker ID or password. Please check your credentials or register.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
     <Card className="w-full max-w-md shadow-xl bg-card">
       <CardHeader>
         <CardTitle className="text-2xl text-primary">Login to Your Account</CardTitle>
-        <CardDescription>Enter your Speaker ID and Email to continue.</CardDescription>
+        <CardDescription>Enter your Speaker ID and Password to continue.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
@@ -86,15 +92,15 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-foreground">Email Address</Label>
+            <Label htmlFor="password" className="text-foreground">Password</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="e.g., user@example.com"
-              {...register('email')}
-              className={errors.email ? 'border-destructive' : ''}
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              {...register('password')}
+              className={errors.password ? 'border-destructive' : ''}
             />
-            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+            {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
           </div>
         </CardContent>
         <CardFooter>
