@@ -5,24 +5,23 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // VITAL: PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE
-//
+// The error "auth/api-key-not-valid" means the values below are incorrect.
 // 1. Go to your Firebase project console.
-// 2. In Project settings > General tab, find your app.
+// 2. In Project settings > General tab, find your web app.
 // 3. Copy the 'firebaseConfig' object and paste it below, replacing the placeholder.
 //
 const firebaseConfig = {
-  apiKey: AIzaSyC_NicO5tXsP8KEILp3TL_kqZFU-bxaOls,
-  authDomain: voiceid-lanka.firebaseapp.com,
-  projectId:  voiceid-lanka,
-  storageBucket: voiceid-lanka.firebasestorage.app,
-  messagingSenderId: 202475807088,
-  appId: 1:202475807088:web:dda411edff453a61a96fb"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
 
 // Initialize Firebase
-// The following line is a best practice for Next.js applications.
-// It checks if a Firebase app has already been initialized to prevent errors during hot-reloading in development.
+// This line checks if a Firebase app is already initialized to prevent errors.
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
