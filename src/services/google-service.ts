@@ -32,7 +32,7 @@ const SCOPES = [
 function getAuthenticatedClient() {
   const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   if (!process.env.GOOGLE_CLIENT_EMAIL || !privateKey) {
-    throw new Error('Google service account credentials (CLIENT_EMAIL, PRIVATE_KEY) are not set in .env');
+    throw new Error('Google service account credentials (GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY) are not set in .env');
   }
 
   const auth = new google.auth.GoogleAuth({
