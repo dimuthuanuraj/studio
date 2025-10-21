@@ -1,22 +1,19 @@
+
 'use server';
 
 import {
   uploadFileToDrive as serviceUploadFile,
   listFilesFromDrive as serviceListFiles,
   downloadFileFromDrive as serviceDownloadFile,
+  appendDataToGoogleSheet,
 } from '@/services/google-drive-service';
 import type { SpeakerProfile } from '@/contexts/auth-context';
+import type { FileMetadata as DriveFileMetadata } from '@/services/google-service';
 
-export interface DriveAudioFileMetadata {
-  id: string;
-  name: string;
-  speakerId?: string;
-  recordedLanguage?: string;
-  phraseIndex?: number;
-  phraseText?: string;
-  timestamp?: string; // from createdTime
-  duration?: string; // This might be harder to get/store with Drive
-  status?: 'pending' | 'verified' | 'rejected'; // Status would be managed in your app's DB, not Drive directly
+
+export interface EnrichedDriveAudioFile extends DriveFileMetadata {
+    // Client-side specific fields
+    status?: 'pending' | 'verified' | 'rejected';
 }
 
 
@@ -45,46 +42,62 @@ export async function uploadAudioToDriveAction(
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    // Construct a unique filename, e.g., id90000_sinhala_phrase1_20231026T123000.webm
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `${speakerId}_${sessionLanguage.toLowerCase()}_phrase${phraseIndex + 1}_${timestamp}.${file.name.split('.').pop() || 'webm'}`;
+    const timestamp = new Date();
+    const isoTimestamp = timestamp.toISOString();
+    const formattedTimestamp = timestamp.toLocaleString('en-US', { timeZone: 'Asia/Colombo' });
 
-    const result = await serviceUploadFile(
+    const fileName = `${speakerId}_${sessionLanguage.toLowerCase()}_phrase${phraseIndex + 1}_${isoTimestamp.replace(/[:.]/g, '-')}.${file.name.split('.').pop() || 'webm'}`;
+
+    // 1. Upload the file to Google Drive
+    const uploadResult = await serviceUploadFile(
         fileName, 
         buffer, 
         file.type,
-        speakerId,
-        sessionLanguage,
-        phraseIndex,
-        phraseText
     );
 
-    if (result.id) {
-      return { success: true, fileId: result.id, fileName: result.name };
+    if (uploadResult.id) {
+      // 2. If upload is successful, log the metadata to Google Sheets
+      const fileLink = `https://drive.google.com/file/d/${uploadResult.id}/view`;
+      
+      const sheetRow = [
+        speakerId,
+        userProfile.fullName,
+        userProfile.language, // Native Language
+        sessionLanguage, // Recorded Language
+        phraseIndex + 1,
+        phraseText,
+        fileName,
+        fileLink,
+        formattedTimestamp, // Timestamp
+        '', // Placeholder for Duration
+        'pending' // Default Status
+      ];
+
+      await appendDataToGoogleSheet(sheetRow);
+      
+      return { success: true, fileId: uploadResult.id, fileName: uploadResult.name };
     } else {
-      return { success: false, error: 'Failed to upload file to Drive (mock service).' };
+      return { success: false, error: 'Failed to upload file to Drive.' };
     }
   } catch (error) {
     console.error('Error in uploadAudioToDriveAction:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'An unknown error occurred during upload.' };
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during upload.';
+    return { success: false, error: `Upload Action Failed: ${errorMessage}` };
   }
 }
 
-export async function listAudioFilesFromDriveAction(): Promise<DriveAudioFileMetadata[]> {
+export async function listAudioFilesFromDriveAction(): Promise<EnrichedDriveAudioFile[]> {
   try {
     const files = await serviceListFiles();
-    // Map the raw file list from the service to the expected AdminDashboard structure
-    return files.map(file => ({
-      id: file.id!,
-      name: file.name!,
-      speakerId: file.speakerId,
-      recordedLanguage: file.recordedLanguage as 'Sinhala' | 'Tamil' | 'English' | undefined,
-      phraseIndex: file.phraseIndex,
-      phraseText: file.phraseText,
-      timestamp: file.createdTime,
-      duration: file.duration || 'N/A', // Drive doesn't easily provide audio duration
-      status: 'pending', // Default status, would be managed elsewhere
-    }));
+    // The service now returns enriched metadata directly from the file names.
+    // Let's sort them by creation time descending.
+    return files
+        .sort((a, b) => new Date(b.createdTime || 0).getTime() - new Date(a.createdTime || 0).getTime())
+        .map(file => ({
+            ...file,
+            status: 'pending' // Default status, would be managed elsewhere (e.g. in the sheet or a DB)
+        }));
+
   } catch (error) {
     console.error('Error in listAudioFilesFromDriveAction:', error);
     return [];
@@ -93,20 +106,29 @@ export async function listAudioFilesFromDriveAction(): Promise<DriveAudioFileMet
 
 export async function getAudioFileFromDriveAction(fileId: string): Promise<{ success: boolean; data?: string; mimeType?: string; error?: string, fileName?: string }> {
   try {
-    const filesMeta = await serviceListFiles(); // Using list to get metadata including name and mimeType
-    const fileMeta = filesMeta.find(f => f.id === fileId);
+    const fileContent = await serviceDownloadFile(fileId);
+    
+    if (fileContent) {
+        // We need metadata to get the name and mimeType. For now, let's list and find.
+        // This is inefficient but works for the current structure.
+        const filesMeta = await serviceListFiles();
+        const fileMeta = filesMeta.find(f => f.id === fileId);
+        
+        if (!fileMeta || !fileMeta.name || !fileMeta.mimeType) {
+            // Fallback if metadata isn't found (should be rare)
+            console.warn(`Could not find metadata for fileId ${fileId} during download.`);
+            return { success: false, error: 'File content found, but metadata is missing.' };
+        }
 
-    if (!fileMeta || !fileMeta.name || !fileMeta.mimeType) {
-        return { success: false, error: 'File metadata not found in mock service.' };
-    }
-
-    const buffer = await serviceDownloadFile(fileId);
-    if (buffer) {
-      // Convert buffer to base64 data URL for client-side playback/download
-      const base64Data = buffer.toString('base64');
-      return { success: true, data: `data:${fileMeta.mimeType};base64,${base64Data}`, mimeType: fileMeta.mimeType, fileName: fileMeta.name };
+        const base64Data = fileContent.toString('base64');
+        return { 
+            success: true, 
+            data: `data:${fileMeta.mimeType};base64,${base64Data}`, 
+            mimeType: fileMeta.mimeType, 
+            fileName: fileMeta.name 
+        };
     } else {
-      return { success: false, error: 'File not found in Drive (mock service).' };
+      return { success: false, error: 'File not found in Google Drive.' };
     }
   } catch (error) {
     console.error('Error in getAudioFileFromDriveAction:', error);
