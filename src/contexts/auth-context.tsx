@@ -24,31 +24,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loggedInUser, setLoggedInUser] = useState<SpeakerProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false); // New state to track client-side mounting
 
   useEffect(() => {
+    setIsClient(true); // Component has mounted, we are on the client
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user); // Keep track of the raw firebase user object
+      setFirebaseUser(user); 
       if (user) {
-        // If a user is authenticated via Firebase, but we don't have the profile
-        // in our React state yet (e.g., on a page refresh), fetch it.
-        if (!loggedInUser) {
-          setIsLoading(true);
+        if (!loggedInUser || loggedInUser.email !== user.email) {
           const profile = await getUserProfile(user.uid);
           if (profile) {
             setLoggedInUser(profile);
           } else {
-             // This case is unlikely if registration is transactional, but handles edge cases.
             console.error("User is authenticated but profile is missing in Firestore. Logging out.");
             auth.signOut();
           }
-          setIsLoading(false);
         }
       } else {
-        // User logged out
         setLoggedInUser(null);
       }
-      // Only set loading to false here after the initial check is done
-      if(isLoading) setIsLoading(false);
+      setIsLoading(false);
     });
 
     // Cleanup subscription on unmount
@@ -67,8 +63,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     firebaseUser, 
     logoutUser, 
     isLoading,
-    setLoggedInUser, // This is called by the login form on successful login
+    setLoggedInUser, 
   };
+  
+  if (!isClient) {
+    // On the server, or before the first client-side render, render a static loading state
+    return (
+      <div className="flex flex-col min-h-screen bg-secondary items-center justify-center">
+        <p className="text-lg text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>
