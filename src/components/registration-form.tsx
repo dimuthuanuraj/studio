@@ -18,8 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { generateSpeakerId, type SpeakerProfile } from '@/services/speaker-id'; 
-import { addUserProfile } from '@/services/user-service'; // Corrected import
+import type { SpeakerProfile } from '@/services/speaker-id'; 
+import { addUserProfile, generateNextSpeakerId } from '@/services/user-service';
 import { Loader2, UserPlus } from 'lucide-react';
 import { Controller } from 'react-hook-form';
 import { auth } from '@/services/firebase';
@@ -62,15 +62,14 @@ export function RegistrationForm() {
     setIsSubmitting(true);
 
     try {
-      // 1. Create user in Firebase Auth
+      // 1. Generate a unique speaker ID from the server
+      const newSpeakerId = await generateNextSpeakerId();
+      
+      // 2. Create user in Firebase Auth with email and password
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const uid = userCredential.user.uid;
       
-      // 2. Generate a unique speaker ID
-      const speakerIdObj = await generateSpeakerId(); 
-      const newSpeakerId = speakerIdObj.id;
-      
-      // 3. Create the speaker profile object
+      // 3. Create the speaker profile object with the new server-generated ID
       const speakerProfile: SpeakerProfile = {
         speakerId: newSpeakerId,
         fullName: data.fullName,
@@ -79,7 +78,7 @@ export function RegistrationForm() {
         language: data.language,
       };
 
-      // 4. Save the profile to Firestore using the UID as the document key
+      // 4. Save the complete profile to Firestore using the UID as the document key
       await addUserProfile(uid, speakerProfile);
       
       // 5. Redirect to success page with user data
@@ -98,6 +97,8 @@ export function RegistrationForm() {
       let description = 'An error occurred during registration. Please try again.';
       if (error.code === 'auth/email-already-in-use') {
         description = 'This email address is already registered. Please try logging in.';
+      } else if (error.message.includes('Could not generate a unique Speaker ID')) {
+        description = 'There was a problem assigning a unique Speaker ID. Please try again in a moment.';
       } else if (error.code === 'auth/invalid-api-key') {
           description = 'The Firebase API key is not valid. Please check your configuration.';
       }

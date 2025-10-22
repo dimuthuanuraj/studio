@@ -6,10 +6,52 @@
  */
 
 import { db } from './firebase'; 
-import { collection, doc, setDoc, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, getDoc, runTransaction } from 'firebase/firestore';
 import type { SpeakerProfile } from './speaker-id';
 
 const USERS_COLLECTION = 'users';
+const COUNTER_DOCUMENT = '--counter--';
+const STARTING_NUMERIC_ID = 90000;
+
+
+/**
+ * Generates the next unique Speaker ID by using a Firestore transaction to atomically increment a counter.
+ * This is a robust, server-side method to ensure unique, sequential IDs without race conditions.
+ * @returns A promise that resolves to the next unique speaker ID (e.g., "id90001").
+ */
+export async function generateNextSpeakerId(): Promise<string> {
+    const counterRef = doc(db, USERS_COLLECTION, COUNTER_DOCUMENT);
+
+    try {
+        const newNumericId = await runTransaction(db, async (transaction) => {
+            const counterDoc = await transaction.get(counterRef);
+            
+            let nextId: number;
+            if (!counterDoc.exists() || !counterDoc.data().lastId) {
+                console.log("Counter document not found. Initializing with starting ID.");
+                nextId = STARTING_NUMERIC_ID;
+            } else {
+                const lastId = counterDoc.data().lastId as number;
+                if(lastId < STARTING_NUMERIC_ID) {
+                    console.warn(`Stored lastId (${lastId}) is less than the starting ID. Resetting.`);
+                    nextId = STARTING_NUMERIC_ID;
+                } else {
+                    nextId = lastId + 1;
+                }
+            }
+            
+            transaction.set(counterRef, { lastId: nextId }, { merge: true });
+            return nextId;
+        });
+
+        return `id${newNumericId}`;
+
+    } catch (error) {
+        console.error("Error generating next speaker ID:", error);
+        throw new Error("Could not generate a unique Speaker ID.");
+    }
+}
+
 
 /**
  * Adds or updates a speaker's profile in the Firestore database.
@@ -87,7 +129,8 @@ export async function getUserBySpeakerId(speakerId: string): Promise<SpeakerProf
 export async function getAllUsers(): Promise<SpeakerProfile[]> {
   try {
     const usersCollectionRef = collection(db, USERS_COLLECTION);
-    const querySnapshot = await getDocs(usersCollectionRef);
+    const q = query(usersCollectionRef, where("speakerId", "!=", null)); // Filter out counter doc
+    const querySnapshot = await getDocs(q);
     
     const users: SpeakerProfile[] = [];
     querySnapshot.forEach((doc) => {

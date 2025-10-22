@@ -42,7 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoggedInUser(profile);
            } else {
              console.error("User is authenticated but profile is missing in Firestore. Logging out.");
-             auth.signOut();
+             // Avoid automatic logout in case of temporary network issue during profile fetch
+             // auth.signOut();
            }
         }
       } else {
