@@ -1,4 +1,3 @@
-
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -12,14 +11,9 @@ export function Header() {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-3 text-2xl font-bold text-primary">
-            <Image 
-              src={UojLogo}
-              alt="University of Jaffna Logo" 
-              width={40} 
-              height={40} 
-              className="rounded-full"
-              data-ai-hint="university emblem" 
-            />
+            <div className="rounded-full flex items-center justify-center h-10 w-24 bg-muted text-muted-foreground text-xs text-center">
+              university of jaffna crest should be here
+            </div>
             <Image
               src={MlslpLogo}
               alt="MLSP Lab Logo"
@@ -48,4 +42,3 @@ export function Header() {
     </header>
   );
 }
-
