@@ -2,7 +2,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { UserCog, UserPlus } from 'lucide-react';
-import UojLogo from '@/img/UoJ_logo_optimized.png';
 import MlslpLogo from '@/img/MLSP_lab_logo_optimized.png';
 
 export function Header() {
@@ -11,14 +10,19 @@ export function Header() {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-3 text-2xl font-bold text-primary">
-            <div className="rounded-full flex items-center justify-center h-10 w-24 bg-muted text-muted-foreground text-xs text-center">
-              university of jaffna crest should be here
-            </div>
+             <Image
+              src="https://www.jfn.ac.lk/wp-content/uploads/2025/10/uoj_logo.png"
+              alt="University of Jaffna Logo"
+              width={40} 
+              height={40}
+              className="h-10 w-10"
+              data-ai-hint="university crest"
+            />
             <Image
               src={MlslpLogo}
               alt="MLSP Lab Logo"
-              width={120} // Increased width
-              height={23} // Increased height, maintaining aspect ratio (original 960x180 -> 120x22.5, rounded to 23)
+              width={120} 
+              height={23} 
               data-ai-hint="lab emblem"
             />
             <span>VoiceID Lanka</span>
