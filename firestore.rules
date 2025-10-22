@@ -1,0 +1,21 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users Collection
+    // - Allow users to create their own profile upon registration.
+    // - Allow users to read and update only their own profile.
+    match /users/{uid} {
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && request.auth.uid == uid;
+      allow delete: if false; // Disallow deleting user profiles
+    }
+
+    // Default deny all other reads/writes to collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,208 @@
+// globals.css:
+    // For `--background`: Changed to Light gray `#FAFAFA` for base background.
+    // `--background`: `0 0% 100%` -> `0 0% 98%` (New
+    // HSL for Light --background is `0 0% 98%` which is `#FAFAFA`)
+
+    // globals.css:
+    // For Dark `--background`: Changed to Dark gray `#1A1A1A` for base background in dark mode.
+    // `--background`: `0 0% 0%` -> `0 0% 10%` (New
+    // HSL for Dark --background is `0 0% 10%` which is `#1A1A1A`)
+
+    // globals.css:
+    // For `--foreground`: Changed to Dark gray `#0A0A0A` for default text.
+    // `--foreground`: `0 0% 0%` -> `0 0% 3.9%` (New
+    // HSL for Light --foreground is `0 0% 3.9%` which is `#0A0A0A`)
+
+    // globals.css:
+    // For Dark `--foreground`: Changed to Light gray `#FAFAFA` for default text in dark mode.
+    // `--foreground`: `0 0% 98%` -> `0 0% 98%` (New
+    // HSL for Dark --foreground is `0 0% 98%` which is `#FAFAFA`)
+
+    // globals.css:
+    // For `--secondary`: Changed to Lighter gray `#F0F0F0` for secondary elements.
+    // `--secondary`: `0 0% 96.1%` -> `0 0% 94.1%` (New
+    // HSL for Light --secondary is `0 0% 94.1%` which is `#F0F0F0`)
+
+    // globals.css:
+    // For Dark `--secondary`: Changed to Darker gray `#2E2E2E` for secondary elements in dark mode.
+    // `--secondary`: `0 0% 14.1%` -> `0 0% 18%` (New
+    // HSL for Dark --secondary is `0 0% 18%` which is `#2E2E2E`)
+
+    // globals.css:
+    // For `--secondary-foreground`: Keep as Dark gray `#0A0A0A` for text on secondary elements.
+    // `--secondary-foreground`: `0 0% 3.9%` (Existing
+    // HSL for Light --secondary-foreground is `0 0% 3.9%` which is `#0A0A0A`)
+
+    // globals.css:
+    // For Dark --secondary-foreground is `0 0% 98%` which is `#FAFAFA`)
+    // The `0 0% 98%` HSL is a good default and doesn't need to be changed.
+
+    // globals.css:
+    // For `--muted`: Change to Light gray `#D6D6D6` for muted elements.
+    // `--muted`: `220 15% 85%` -> `0 0% 83.9%` (New
+    // HSL for Light --muted is `0 0% 83.9%` which is `#D6D6D6`)
+
+    // globals.css:
+    // For `--muted-foreground`: Change to Darker gray `#757575` for muted text.
+    // `--muted-foreground`: `240 5% 45.1%` -> `0 0% 45.9%` (New
+    // HSL for Light --muted-foreground is `0 0% 45.9%` which is `#757575`)
+
+    // globals.css:
+    // For Dark `--muted`: Change to Darker gray `#424242` for muted elements in dark mode.
+    // `--muted`: `240 3.7% 15.9%` -> `0 0% 25.9%` (New
+    // HSL for Dark --muted is `0 0% 25.9%` which is `#424242`)
+
+    // globals.css:
+    // For Dark `--muted-foreground`: Change to Lighter gray `#BDBDBD` for muted text in dark mode.
+    // `--muted-foreground`: `0 0% 63.9%` -> `0 0% 74.1%` (New
+    // HSL for Dark --muted-foreground is `0 0% 74.1%` which is `#BDBDBD`)
+
+    // globals.css:
+    // For `--accent`: Change to Blue `#2196F3` for interactive elements.
+    // `--accent`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Light --accent is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For `--accent-foreground`: Change to White `#FFFFFF` for text on accent.
+    // `--accent-foreground`: `0 0% 98%` -> `0 0% 100%` (New
+    // HSL for Light --accent-foreground is `0 0% 100%` which is `#FFFFFF`)
+
+    // globals.css:
+    // For Dark `--accent`: Change to Blue `#2196F3` for interactive elements in dark mode.
+    // `--accent`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Dark --accent is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For Dark `--accent-foreground`: Change to White `#FFFFFF` for text on accent in dark mode.
+    // `--accent-foreground`: `0 0% 98%` -> `0 0% 100%` (New
+    // HSL for Dark --accent-foreground is `0 0% 100%` which is `#FFFFFF`)
+
+    // globals.css:
+    // For `--border`: Change to Light gray `#E0E0E0` for borders.
+    // `--border`: `220 15% 89.8%` -> `0 0% 87.8%` (New
+    // HSL for Light --border is `0 0% 87.8%` which is `#E0E0E0`)
+
+    // globals.css:
+    // For Dark `--border`: Change to Darker gray `#424242` for borders in dark mode.
+    // `--border`: `240 3.7% 15.9%` -> `0 0% 25.9%` (New
+    // HSL for Dark --border is `0 0% 25.9%` which is `#424242`)
+
+    // globals.css:
+    // For `--input`: Change to Light gray `#E0E0E0` for input fields.
+    // `--input`: `220 15% 89.8%` -> `0 0% 87.8%` (New
+    // HSL for Light --input is `0 0% 87.8%` which is `#E0E0E0`)
+
+    // globals.css:
+    // For Dark `--input`: Change to Darker gray `#424242` for input fields in dark mode.
+    // `--input`: `240 3.7% 15.9%` -> `0 0% 25.9%` (New
+    // HSL for Dark --input is `0 0% 25.9%` which is `#424242`)
+
+    // globals.css:
+    // For `--ring`: Change to Blue `#2196F3` for focus rings.
+    // `--ring`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Light --ring is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For Dark `--ring`: Change to Blue `#2196F3` for focus rings in dark mode.
+    // `--ring`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Dark --ring is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For `--sidebar-background`: Change to Lighter gray `#FAFAFA` for sidebar background.
+    // `--sidebar-background`: `220 20% 98%` -> `0 0% 98%` (New
+    // HSL for Light --sidebar-background is `0 0% 98%` which is `#FAFAFA`)
+
+    // globals.css:
+    // For Dark `--sidebar-background`: Change to Dark gray `#212121` for sidebar background in dark mode.
+    // `--sidebar-background`: `240 5.9% 10%` -> `0 0% 12.9%` (New
+    // HSL for Dark --sidebar-background is `0 0% 12.9%` which is `#212121`)
+
+    // globals.css:
+    // For `--sidebar-foreground`: Change to Dark gray `#424242` for sidebar text.
+    // `--sidebar-foreground`: `240 5.3% 26.1%` -> `0 0% 25.9%` (New
+    // HSL for Light --sidebar-foreground is `0 0% 25.9%` which is `#424242`)
+
+    // globals.css:
+    // For Dark `--sidebar-foreground`: Change to Light gray `#E0E0E0` for sidebar text in dark mode.
+    // `--sidebar-foreground`: `240 4.8% 95.9%` -> `0 0% 87.8%` (New
+    // HSL for Dark --sidebar-foreground is `0 0% 87.8%` which is `#E0E0E0`)
+
+    // globals.css:
+    // For `--sidebar-primary`: Change to Green `#4CAF50` for primary elements in sidebar.
+    // `--sidebar-primary`: `122 39% 49%` -> `122 39.4% 49.2%` (New
+    // HSL for Light --sidebar-primary is `122 39.4% 49.2%` which is `#4CAF50`)
+
+    // globals.css:
+    // For Dark `--sidebar-primary`: Change to Green `#4CAF50` for primary elements in sidebar in dark mode.
+    // `--sidebar-primary`: `122 39% 49%` -> `122 39.4% 49.2%` (New
+    // HSL for Dark --sidebar-primary is `122 39.4% 49.2%` which is `#4CAF50`)
+
+    // globals.css:
+    // For `--sidebar-primary-foreground`: Change to White `#FFFFFF` for text on primary sidebar elements.
+    // `--sidebar-primary-foreground`: `0 0% 98%` -> `0 0% 100%` (New
+    // HSL for Light --sidebar-primary-foreground is `0 0% 100%` which is `#FFFFFF`)
+
+    // globals.css:
+    // For Dark `--sidebar-primary-foreground`: Change to White `#FFFFFF` for text on primary sidebar elements in dark mode.
+    // `--sidebar-primary-foreground`: `0 0% 98%` -> `0 0% 100%` (New
+    // HSL for Dark --sidebar-primary-foreground is `0 0% 100%` which is `#FFFFFF`)
+
+    // globals.css:
+    // For `--sidebar-accent`: Change to Blue `#2196F3` for accent elements in sidebar.
+    // `--sidebar-accent`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Light --sidebar-accent is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For Dark `--sidebar-accent`: Change to Blue `#2196F3` for accent elements in sidebar in dark mode.
+    // `--sidebar-accent`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Dark --sidebar-accent is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For `--sidebar-accent-foreground`: Change to White `#FFFFFF` for text on accent sidebar elements.
+    // `--sidebar-accent-foreground`: `0 0% 98%` -> `0 0% 100%` (New
+    // HSL for Light --sidebar-accent-foreground is `0 0% 100%` which is `#FFFFFF`)
+
+    // globals.css:
+    // For Dark `--sidebar-accent-foreground`: Change to White `#FFFFFF` for text on accent sidebar elements in dark mode.
+    // `--sidebar-accent-foreground`: `0 0% 98%` -> `0 0% 100%` (New
+    // HSL for Dark --sidebar-accent-foreground is `0 0% 100%` which is `#FFFFFF`)
+
+    // globals.css:
+    // For `--sidebar-border`: Change to Light gray `#E0E0E0` for sidebar borders.
+    // `--sidebar-border`: `220 13% 91%` -> `0 0% 87.8%` (New
+    // HSL for Light --sidebar-border is `0 0% 87.8%` which is `#E0E0E0`)
+
+    // globals.css:
+    // For Dark `--sidebar-border`: Change to Darker gray `#424242` for sidebar borders in dark mode.
+    // `--sidebar-border`: `240 3.7% 15.9%` -> `0 0% 25.9%` (New
+    // HSL for Dark --sidebar-border is `0 0% 25.9%` which is `#424242`)
+
+    // globals.css:
+    // For `--sidebar-ring`: Change to Blue `#2196F3` for sidebar focus rings.
+    // `--sidebar-ring`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Light --sidebar-ring is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For Dark `--sidebar-ring`: Change to Blue `#2196F3` for sidebar focus rings in dark mode.
+    // `--sidebar-ring`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Dark --sidebar-ring is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For `--chart-1`: Change to Green `#4CAF50` for chart color 1.
+    // `--chart-1`: `122 39% 49%` -> `122 39.4% 49.2%` (New
+    // HSL for Light --chart-1 is `122 39.4% 49.2%` which is `#4CAF50`)
+
+    // globals.css:
+    // For Dark `--chart-1`: Change to Green `#4CAF50` for chart color 1 in dark mode.
+    // `--chart-1`: `122 39% 49%` -> `122 39.4% 49.2%` (New
+    // HSL for Dark --chart-1 is `122 39.4% 49.2%` which is `#4CAF50`)
+
+    // globals.css:
+    // For `--chart-2`: Change to Blue `#2196F3` for chart color 2.
+    // `--chart-2`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Light --chart-2 is `207 90.2% 53.5%` which is `#2196F3`)
+
+    // globals.css:
+    // For Dark `--chart-2`: Change to Blue `#2196F3` for chart color 2 in dark mode.
+    // `--chart-2`: `217 91% 60%` -> `207 90.2% 53.5%` (New
+    // HSL for Dark --chart-2 is `207 90.2% 53.5%` which is `#2196F3`)
